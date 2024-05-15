@@ -22,34 +22,19 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 """
-Implement various agents 
+Implement track
 """
-class Agent:
-    def __init__(self, veh_config, scen_config, x0, controller):
-        self.veh_config = veh_config
+import numpy as np
+
+
+class Track:
+    def __init__(self, scen_config):
         self.scen_config = scen_config
-        self.x = [x0]
-        self.controller = controller
 
-    # Implement dynamics and update state one timestep later
-    def step(self, oppo_states):
-        raise NotImplementedError("Inheritance not implemented correctly")
+    # Convert curvilinear coordinates to global
+    def CLtoGlobal(self, state):
+        global_state = np.zeros(6)
+        return global_state
+        
 
-    def getLastState(self):
-        return self.x[-1]
-
-    @property
-    def ID(self):
-        return self.config["ID"] 
-    
-    @property
-    def size(self):
-        return self.congif["size"]
-
-   
-class BicycleVehicle(Agent):
-    def __init__(self, veh_config, scen_config, x0, controller):
-        super().__init__(veh_config, scen_config, x0, controller)
-
-    def step(self, oppo_states):
 
