@@ -25,28 +25,38 @@ SOFTWARE.
 Implement various controllers
 """
 class Controller:
-    def __init__(self, veh_config, scen_config, cont_config):
+    def __init__(self, veh_config, scen_config, control_config):
         self.veh_config = veh_config
         self.scen_config = scen_config
-        self.cont_config = cont_config
+        self.control_config = control_config
 
     # Calculate next input (rear wheel torque, steering angle) and return
-    def findControl(self, state, oppo_states, curvature):
+    def computeControl(self, state, oppo_states, curvature):
         raise NotImplementedError("Inheritance not implemented correctly")
+
+
 
 """Drive in a circle"""
 class DumbController(Controller):
-    def __init__(self,  veh_config, scen_config, cont_config):
-        super().__init__(veh_config, scen_config, cont_config)
+    def __init__(self,  veh_config, scen_config, control_config):
+        super().__init__(veh_config, scen_config, control_config)
 
-    def findControl(self, state, oppo_states, curvature):
+    def computeControl(self, state, oppo_states, curvature):
         return 1, 0.1
 
-class PDController(Controller):
-    def __init__(self,  veh_config, scen_config, cont_config):
-        super().__init__(veh_config, scen_config, cont_config)
 
-    def findControl(self, state, oppo_states, curvature):
+
+class PDController(Controller):
+    def __init__(self,  veh_config, scen_config, control_config):
+        super().__init__(veh_config, scen_config, control_config)
+
+    def computeControl(self, state, oppo_states, curvature):
+        return None, None
         
 
-
+if __name__ == "__main__":
+    veh_config = {}
+    scen_config = {}
+    control_config = {}
+    cont = DumbController(veh_config, scen_config, control_config)
+    print(cont.computeControl([1,2,3],[[1,2,3]], 0.2))

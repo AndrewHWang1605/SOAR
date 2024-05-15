@@ -47,5 +47,10 @@ class BicycleVehicle(Agent):
     def __init__(self, veh_config, scen_config, x0, controller):
         super().__init__(veh_config, scen_config, x0, controller)
 
-    def step(self, oppo_states):
+    """
+    Implement dynamics and update state one timestep later
+    oppo_states: Nxk 
+    """
+    def step(self, oppo_states, curvature):
+        torque, delta = self.controller.computeControl(self.x[-1], oppo_states, curvature)
 
