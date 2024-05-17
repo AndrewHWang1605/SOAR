@@ -95,7 +95,6 @@ class Track:
 
         return total_len, s, track_curvature, track_xypsi
 
-
 class OvalTrack(Track):
     def __init__(self, track_config):
         super().__init__(track_config)
@@ -104,29 +103,50 @@ class OvalTrack(Track):
         track_half_width = track_config["track_half_width"]
         straight_len = track_config["straight_length"]
         curve_rad = track_config["curve_radius"]
+        ds = track_config["ds"]
 
         segment_curvature = [0, -1/curve_rad, 0, -1/curve_rad]
         segment_change = np.cumsum([straight_len, curve_rad*np.pi, straight_len, curve_rad*np.pi])
-        ds = 0.05
 
         self.total_len, self.s, self.track_curvature, self.track_xypsi = self.generateTrackFromCurvature(segment_curvature, segment_change, ds) 
 
+class LTrack(Track):
+    def __init__(self, track_config):
+        super().__init__(track_config)
+
+    def generateTrackRep(self, track_config):
+        track_half_width = track_config["track_half_width"]
+        straight_len = track_config["straight_length"]
+        curve_rad = track_config["curve_radius"]
+        ds = track_config["ds"]
+
+        segment_curvature = [0, -1/curve_rad, 1/curve_rad, -1/curve_rad, 0, -1/curve_rad]
+        segment_change = np.cumsum([straight_len, curve_rad*np.pi, curve_rad*np.pi/2, curve_rad*np.pi, straight_len, curve_rad*np.pi/2])
+
+        self.total_len, self.s, self.track_curvature, self.track_xypsi = self.generateTrackFromCurvature(segment_curvature, segment_change, ds) 
+
+
 if __name__ == "__main__":
     import matplotlib.pyplot as plt
-    track_config = {"track_half_width":10, "straight_length":100, "curve_radius":90}
-    ovaltrack = OvalTrack(track_config)
+    # Oval Track
+    # track_config = {"track_half_width":10, "straight_length":100, "curve_radius":90, "ds":0.05}
+    # track = OvalTrack(track_config)
+
+    # L Track
+    track_config = {"track_half_width":10, "straight_length":100, "curve_radius":50, "ds":0.05}
+    track = LTrack(track_config)
     
     """
     curvilinear state: [s, ey, epsi, vx, vy, w, delta]
     global state: [x, y, theta, vx, vy, w, delta]
     """
-    cl_state = np.array([120, -7, np.pi/4, 25, 30, 0, 0])
-    glob_state = ovaltrack.CLtoGlobal(cl_state)
-    track_x,track_y,track_psi = ovaltrack.getTrackPosition(cl_state[0])
+    cl_state = np.array([220, -7, np.pi/4, 25, 30, 0, 0])
+    glob_state = track.CLtoGlobal(cl_state)
+    track_x,track_y,track_psi = track.getTrackPosition(cl_state[0])
     print("Curvilinear State", cl_state)
     print("Global State", glob_state)
 
-    xypsi = ovaltrack.track_xypsi
+    xypsi = track.track_xypsi
     plt.scatter(xypsi[:,0], xypsi[:,1], s=0.2, marker='*')
     plt.scatter(xypsi[:,0] - track_config["track_half_width"]*np.sin(xypsi[:,2]), xypsi[:,1] + track_config["track_half_width"]*np.cos(xypsi[:,2]), s=0.2, marker='o') # Left track limit
     plt.scatter(xypsi[:,0] + track_config["track_half_width"]*np.sin(xypsi[:,2]), xypsi[:,1] - track_config["track_half_width"]*np.cos(xypsi[:,2]), s=0.2, marker='o') # Right track limit
