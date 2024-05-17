@@ -25,6 +25,7 @@ SOFTWARE.
 Implement track
 """
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 class Track:
@@ -97,8 +98,8 @@ class Track:
 
     def plotTrack(self):
         plt.plot(self.track_xypsi[:,0], self.track_xypsi[:,1], linestyle='--', color='lightgrey', zorder=-1)
-        plt.plot(self.track_xypsi[:,0] - track_config["track_half_width"]*np.sin(self.track_xypsi[:,2]), self.track_xypsi[:,1] + track_config["track_half_width"]*np.cos(self.track_xypsi[:,2]), linestyle='-', color='grey', zorder=-1) # Left track limit
-        plt.plot(self.track_xypsi[:,0] + track_config["track_half_width"]*np.sin(self.track_xypsi[:,2]), self.track_xypsi[:,1] - track_config["track_half_width"]*np.cos(self.track_xypsi[:,2]), linestyle='-', color='grey', zorder=-1) # Right track limit
+        plt.plot(self.track_xypsi[:,0] - self.track_config["track_half_width"]*np.sin(self.track_xypsi[:,2]), self.track_xypsi[:,1] + self.track_config["track_half_width"]*np.cos(self.track_xypsi[:,2]), linestyle='-', color='grey', zorder=-1) # Left track limit
+        plt.plot(self.track_xypsi[:,0] + self.track_config["track_half_width"]*np.sin(self.track_xypsi[:,2]), self.track_xypsi[:,1] - self.track_config["track_half_width"]*np.cos(self.track_xypsi[:,2]), linestyle='-', color='grey', zorder=-1) # Right track limit
 
 class OvalTrack(Track):
     def __init__(self, track_config):
@@ -132,7 +133,6 @@ class LTrack(Track):
 
 
 if __name__ == "__main__":
-    import matplotlib.pyplot as plt
     # Oval Track
     # track_config = {"track_half_width":10, "straight_length":100, "curve_radius":90, "ds":0.05}
     # track = OvalTrack(track_config)

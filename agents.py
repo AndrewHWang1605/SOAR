@@ -81,18 +81,20 @@ class BicycleVehicle(Agent):
         # Calculate various forces 
         Fxf, Fxr = self.longitudinalForce(accel)
         Fyf, Fyr = self.lateralForce()
-        Fd = self.dragForce()
+        Fd = 0 #self.dragForce()
 
         # Calculate x_dot components from dynamics equations
         s_dot = (vx*cos_epsi - vy*sin_epsi) / (1 - ey * kappa)
         ey_dot = vx*sin_epsi + vy*cos_epsi
-        ephi_dot = omega - kappa*s_dot
-        vx_dot = 1/m * (Fxr - Fd - Fyf*sin_delta + Fxf*cos_delta + m*vy*omega)
-        vy_dot = 1/m * (Fyr + Fyf*cos_delta + Fxf*sin_delta - m*vx*omega)
-        omega_dot = 1/Iz * (lf * (Fyf*cos_delta + Fxf*sin_delta) - lr*Fyr)
+        epsi_dot = omega - kappa*s_dot
+        vx_dot = 1/m * (Fxr - Fd - Fyf*sin_delta + m*vy*omega)
+        vy_dot = 1/m * (Fyr + Fyf*cos_delta - m*vx*omega)
+        omega_dot = 1/Iz * (lf*Fyf*cos_delta - lr*Fyr)
+
+        print("vx_dot", np.round(vx_dot,4), "Fyf*sin_delta", np.round(Fyf*sin_delta,4), "Fyf*cos_delta", np.round(Fyf*cos_delta,4))
 
         # Propogate state variable forwards one timestep with Euler step
-        x_dot = np.array([s_dot, ey_dot, ephi_dot, vx_dot, vy_dot, omega_dot, delta_dot])
+        x_dot = np.array([s_dot, ey_dot, epsi_dot, vx_dot, vy_dot, omega_dot, delta_dot])
         self.x = self.x + x_dot*dt
         return self.x
 
@@ -103,12 +105,14 @@ class BicycleVehicle(Agent):
         Fxf, Fxr = 0, m*accel
         return Fxf, Fxr
     
+    
     # Simple linearized lateral forces/tire model with slip angles
     def lateralForce(self):
         c = self.veh_config["c"]
         alpha_f, alpha_r = self.slipAngles()
         Fyf, Fyr = -c*alpha_f, -c*alpha_r
         return Fyf, Fyr
+    
         
     # Slip angles for tires
     def slipAngles(self):
@@ -118,13 +122,23 @@ class BicycleVehicle(Agent):
 
         if vx < 1e-3:
             alpha_f, alpha_r = 0,0
-        elif vy < 0.1 or vx < 0.1:
-            alpha_f = (vx*delta - vy - lf*omega) / vx
-            alpha_r = (-vy + lr*omega) / vx
-        else:
-            alpha_f = np.arctan2((vy + lf*omega), vx) - delta
-            alpha_r = np.arctan2((vy - lr*omega), vx)
+        else: 
+            if abs((vy + lf*omega) / vx) < 0.1:
+                alpha_f = (vx*delta - vy - lf*omega) / vx
+            else:
+                # alpha_f = delta - np.arctan2((vy + lf*omega), vx)
+                alpha_f = delta - np.arctan((vy + lf*omega) / vx)
+            
+            if abs((vy - lr*omega) / vx) < 0.1:
+                alpha_r = (-vy + lr*omega) / vx
+            else:
+                # alpha_r = -np.arctan2((vy - lr*omega), vx)
+                alpha_r = -np.arctan((vy - lr*omega) / vx)
+                
+
+        print(alpha_f, alpha_r)
         return alpha_f, alpha_r
+    
 
     # Frontal drag force of vehicle
     def dragForce(self):
@@ -132,7 +146,6 @@ class BicycleVehicle(Agent):
         rho = 1.225
         Cd = self.veh_config["Cd"]
         SA = self.veh_config["SA"]
-
         Fd = 0.5 * rho * SA * Cd * vx**2
         return Fd
 
@@ -142,19 +155,21 @@ if __name__ == "__main__":
     from config import get_vehicle_config, get_scene_config
     import matplotlib.pyplot as plt
 
-    veh_config = get_vehicle_config()    
+    veh_config = get_vehicle_config()
     scene_config = get_scene_config()
-    x0 = [0, 0, 0, 0.1, 0, 0, np.pi/2]
+    x0 = [0, 0, 0, 2, 0, 0, np.pi/3]
     agent = BicycleVehicle(veh_config, scene_config, x0, 0)
     x_holder = []
-    for i in range(10):
+    for i in range(25):
         holder = np.round(agent.step(0,0),4)
-        print("CL coords", holder)
+        # print("CL coords", holder)
         holder = scene_config["track"].CLtoGlobal(holder)
-        print("Global coords", holder)
+        print(str(i), " Global coords", np.round(holder,2))
         x_holder.append(holder)
 
-    plt.plot(x_holder[0], x_holder[1])
+    x_holder = np.array(x_holder)
+    scene_config["track"].plotTrack()
+    plt.plot(x_holder[:, 0], x_holder[:, 1])
     plt.show()
     
 
