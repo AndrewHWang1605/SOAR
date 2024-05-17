@@ -95,6 +95,11 @@ class Track:
 
         return total_len, s, track_curvature, track_xypsi
 
+    def plotTrack(self):
+        plt.plot(self.track_xypsi[:,0], self.track_xypsi[:,1], linestyle='--', color='lightgrey', zorder=-1)
+        plt.plot(self.track_xypsi[:,0] - track_config["track_half_width"]*np.sin(self.track_xypsi[:,2]), self.track_xypsi[:,1] + track_config["track_half_width"]*np.cos(self.track_xypsi[:,2]), linestyle='-', color='grey', zorder=-1) # Left track limit
+        plt.plot(self.track_xypsi[:,0] + track_config["track_half_width"]*np.sin(self.track_xypsi[:,2]), self.track_xypsi[:,1] - track_config["track_half_width"]*np.cos(self.track_xypsi[:,2]), linestyle='-', color='grey', zorder=-1) # Right track limit
+
 class OvalTrack(Track):
     def __init__(self, track_config):
         super().__init__(track_config)
@@ -133,24 +138,20 @@ if __name__ == "__main__":
     # track = OvalTrack(track_config)
 
     # L Track
-    track_config = {"track_half_width":10, "straight_length":100, "curve_radius":50, "ds":0.05}
+    track_config = {"track_half_width":15, "straight_length":100, "curve_radius":50, "ds":0.05}
     track = LTrack(track_config)
     
     """
     curvilinear state: [s, ey, epsi, vx, vy, w, delta]
     global state: [x, y, theta, vx, vy, w, delta]
     """
-    cl_state = np.array([220, -7, np.pi/4, 25, 30, 0, 0])
+    cl_state = np.array([320, -7, np.pi/4, 25, 30, 0, 0])
     glob_state = track.CLtoGlobal(cl_state)
     track_x,track_y,track_psi = track.getTrackPosition(cl_state[0])
     print("Curvilinear State", cl_state)
     print("Global State", glob_state)
 
-    xypsi = track.track_xypsi
-    plt.scatter(xypsi[:,0], xypsi[:,1], s=0.2, marker='*')
-    plt.scatter(xypsi[:,0] - track_config["track_half_width"]*np.sin(xypsi[:,2]), xypsi[:,1] + track_config["track_half_width"]*np.cos(xypsi[:,2]), s=0.2, marker='o') # Left track limit
-    plt.scatter(xypsi[:,0] + track_config["track_half_width"]*np.sin(xypsi[:,2]), xypsi[:,1] - track_config["track_half_width"]*np.cos(xypsi[:,2]), s=0.2, marker='o') # Right track limit
-    
+    track.plotTrack()    
     plt.scatter(track_x, track_y)
     plt.quiver(glob_state[0], glob_state[1], np.cos(glob_state[2]), np.sin(glob_state[2]))
     plt.quiver(glob_state[0], glob_state[1], glob_state[3], glob_state[4], color='r')
