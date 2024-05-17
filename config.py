@@ -55,7 +55,7 @@ def get_scene_config():
     track_type = OVAL_TRACK
 
     scene_config["track"] = get_track_config(track_type)
-    scene_config["dt"] = 0.02
+    scene_config["dt"] = 0.001
 
     return scene_config
 
