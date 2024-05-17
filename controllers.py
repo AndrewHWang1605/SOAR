@@ -24,6 +24,7 @@ SOFTWARE.
 """
 Implement various controllers
 """
+
 class Controller:
     def __init__(self, veh_config, scen_config, control_config):
         self.veh_config = veh_config
@@ -55,8 +56,9 @@ class PDController(Controller):
         
 
 if __name__ == "__main__":
-    veh_config = {}
-    scen_config = {}
-    control_config = {}
+    from config import get_vehicle_config, get_scene_config, get_controller_config
+    veh_config = get_vehicle_config()
+    scen_config = get_scene_config()
+    control_config = get_controller_config()
     cont = DumbController(veh_config, scen_config, control_config)
     print(cont.computeControl([1,2,3],[[1,2,3]], 0.2))

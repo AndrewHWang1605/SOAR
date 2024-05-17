@@ -25,6 +25,8 @@ SOFTWARE.
 Implement configs
 """
 
+from track import OvalTrack
+
 def get_vehicle_config():
     
     veh_config = {}
@@ -47,11 +49,17 @@ def get_scene_config():
 
     scene_config = {}
 
+    scene_config["track"] = OvalTrack()
+    scene_config["dt"] = 0.1
+
     return scene_config
 
 
 def get_controller_config():
 
     controller_config = {}
+
+    controller_config["kp"] = 0.9
+    controller_config["kd"] = 0.1
 
     return controller_config

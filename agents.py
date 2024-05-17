@@ -26,12 +26,11 @@ Implement various agents
 """
 import numpy as np
 
-
 class Agent:
-    def __init__(self, veh_config, scen_config, x0, controller):
+    def __init__(self, veh_config, scene_config, x0, controller):
         self.veh_config = veh_config
-        self.scen_config = scen_config
-        self.x = [x0]
+        self.scene_config = scene_config
+        self.x = x0
         self.controller = controller
 
     # Implement dynamics and update state one timestep later
@@ -51,34 +50,40 @@ class Agent:
 
    
 class BicycleVehicle(Agent):
-    def __init__(self, veh_config, scen_config, x0, controller):
-        super().__init__(veh_config, scen_config, x0, controller)
+    def __init__(self, veh_config, scene_config, x0, controller):
+        super().__init__(veh_config, scene_config, x0, controller)
 
     """
     Implement dynamics and update state one timestep later
     oppo_states: Nxk 
     """
     def step(self, oppo_states, curvature):
-        accel, delta_dot = self.controller.computeControl(self.x[-1], oppo_states, curvature)
+        # accel, delta_dot = self.controller.computeControl(self.x[-1], oppo_states, curvature)
+        accel, delta_dot = 0, 0
         x_new = self.dynamics(accel, delta_dot)
         return x_new
-        
+    
+    # Steps forward dynamics of vehicle one discrete timestep
     def dynamics(self, accel, delta_dot):
+        # Expands state variable and precalculates sin/cos
         s, ey, epsi, vx, vy, omega, delta = self.x
         sin_epsi, cos_epsi = np.sin(epsi), np.cos(epsi)
         sin_delta, cos_delta = np.sin(delta), np.cos(delta)
 
-        dt = self.scen_config["dt"]
-        kappa = self.scen_config["track"].getCurvature(s)
+        # Expand scene and vehicle config variables
+        dt = self.scene_config["dt"]
+        kappa = self.scene_config["track"].getCurvature(s)
         m = self.veh_config["m"]
         Iz = self.veh_config["Iz"]
         lf = self.veh_config["lf"]
         lr = self.veh_config["lr"]
 
+        # Calculate various forces 
         Fxf, Fxr = self.longitudinalForce(accel)
         Fyf, Fyr = self.lateralForce()
-        Fd = self.dragForce(vx)
+        Fd = self.dragForce()
 
+        # Calculate x_dot components from dynamics equations
         s_dot = (vx*cos_epsi - vy*sin_epsi) / (1 - ey * kappa)
         ey_dot = vx*sin_epsi + vy*cos_epsi
         ephi_dot = omega - kappa*s_dot
@@ -86,7 +91,8 @@ class BicycleVehicle(Agent):
         vy_dot = 1/m * (Fyr + Fyf*cos_delta + Fxf*sin_delta - m*vx*omega)
         omega_dot = 1/Iz * (lf * (Fyf*cos_delta + Fxf*sin_delta) - lr*Fyr)
 
-        x_dot = [s_dot, ey_dot, ephi_dot, vx_dot, vy_dot, omega_dot, delta_dot]
+        # Propogate state variable forwards one timestep with Euler step
+        x_dot = np.array([s_dot, ey_dot, ephi_dot, vx_dot, vy_dot, omega_dot, delta_dot])
         self.x = self.x + x_dot*dt
         return self.x
 
@@ -110,8 +116,14 @@ class BicycleVehicle(Agent):
         lf = self.veh_config["lf"]
         lr = self.veh_config["lr"]
 
-        alpha_f = np.atan2((vy + lf*omega) / vx) - delta
-        alpha_r = np.atan2((vy - lr*omega) / vx)
+        if vx < 1e-3:
+            alpha_f, alpha_r = 0,0
+        elif vy < 0.1 or vx < 0.1:
+            alpha_f = (vx*delta - vy - lf*omega) / vx
+            alpha_r = (-vy + lr*omega) / vx
+        else:
+            alpha_f = np.arctan2((vy + lf*omega), vx) - delta
+            alpha_r = np.arctan2((vy - lr*omega), vx)
         return alpha_f, alpha_r
 
     # Frontal drag force of vehicle
@@ -125,6 +137,24 @@ class BicycleVehicle(Agent):
         return Fd
 
         
-        
-        
+if __name__ == "__main__":
+    from track import OvalTrack
+    from config import get_vehicle_config, get_scene_config
+    import matplotlib.pyplot as plt
+
+    veh_config = get_vehicle_config()    
+    scene_config = get_scene_config()
+    x0 = [0, 0, 0, 0.1, 0, 0, np.pi/2]
+    agent = BicycleVehicle(veh_config, scene_config, x0, 0)
+    x_holder = []
+    for i in range(10):
+        holder = np.round(agent.step(0,0),4)
+        print("CL coords", holder)
+        holder = scene_config["track"].CLtoGlobal(holder)
+        print("Global coords", holder)
+        x_holder.append(holder)
+
+    plt.plot(x_holder[0], x_holder[1])
+    plt.show()
+    
 
