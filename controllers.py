@@ -24,6 +24,7 @@ SOFTWARE.
 """
 Implement various controllers
 """
+import numpy as np
 
 class Controller:
     def __init__(self, veh_config, scen_config, control_config):
@@ -31,36 +32,43 @@ class Controller:
         self.scen_config = scen_config
         self.control_config = control_config
 
-    # Calculate next input (rear wheel torque, steering angle) and return
-    def computeControl(self, state, oppo_states, curvature):
+    def computeControl(self, state, oppo_states, curvature, t):
+        """
+        Calculate next input (rear wheel commanded acceleration, derivative of steering angle) 
+        """
         raise NotImplementedError("Inheritance not implemented correctly")
 
 
 
-"""Drive in a circle"""
-class DumbController(Controller):
+"""Sinusoidal steering with const acceleration"""
+class SinusoidalController(Controller):
     def __init__(self,  veh_config, scen_config, control_config):
         super().__init__(veh_config, scen_config, control_config)
 
-    def computeControl(self, state, oppo_states, curvature):
-        return 1, 0.1
-
+    def computeControl(self, state, oppo_states, curvature, t):
+        """
+        Calculate next input (rear wheel commanded acceleration, derivative of steering angle) 
+        """
+        w = self.control_config["omega"]
+        return 2, w*np.pi/180*np.cos(w*t)
 
 
 class PDController(Controller):
     def __init__(self,  veh_config, scen_config, control_config):
         super().__init__(veh_config, scen_config, control_config)
 
-    def computeControl(self, state, oppo_states, curvature):
-        
+    def computeControl(self, state, oppo_states, curvature, t):
+        """
+        Calculate next input (rear wheel commanded acceleration, derivative of steering angle) 
+        """
 
         return None, None
         
 
 if __name__ == "__main__":
-    from config import get_vehicle_config, get_scene_config, get_controller_config
+    from config import get_vehicle_config, get_scene_config, get_controller_config, get_sinusoidal_controller_config
     veh_config = get_vehicle_config()
     scen_config = get_scene_config()
-    control_config = get_controller_config()
-    cont = DumbController(veh_config, scen_config, control_config)
-    print(cont.computeControl([1,2,3],[[1,2,3]], 0.2))
+    control_config = get_sinusoidal_controller_config()
+    cont = SinusoidalController(veh_config, scen_config, control_config)
+    # print(cont.computeControl([1,2,3],[[1,2,3]], 0.2))

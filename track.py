@@ -41,9 +41,7 @@ class Track:
         """
         s, ey, epsi, vx_cl, vy_cl, w, delta = state
         track_x, track_y, track_psi = self.getTrackPosition(s)
-
-        print(track_x, track_y, track_psi)
-        
+                
         x = track_x - ey*np.sin(track_psi)
         y = track_y + ey*np.cos(track_psi)
         theta = (track_psi + epsi) % (2*np.pi)
