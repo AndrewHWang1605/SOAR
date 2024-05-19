@@ -40,7 +40,7 @@ class Controller:
 
 
 
-"""Sinusoidal steering with const acceleration"""
+"""Sinusoidal steering with const acceleration (for debugging)"""
 class SinusoidalController(Controller):
     def __init__(self,  veh_config, scen_config, control_config):
         super().__init__(veh_config, scen_config, control_config)

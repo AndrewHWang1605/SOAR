@@ -55,7 +55,7 @@ def get_scene_config():
     track_type = OVAL_TRACK
 
     scene_config["track"] = get_track_config(track_type)
-    scene_config["dt"] = 0.001
+    scene_config["dt"] = 0.005
 
     return scene_config
 
@@ -79,5 +79,10 @@ def get_controller_config():
     controller_config["kp"] = 0.9
     controller_config["kd"] = 0.1
 
+    return controller_config
+
+def get_sinusoidal_controller_config():
+    controller_config = {}
+    controller_config["omega"] = 1.5
     return controller_config
 
