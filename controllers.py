@@ -27,9 +27,9 @@ Implement various controllers
 import numpy as np
 
 class Controller:
-    def __init__(self, veh_config, scen_config, control_config):
+    def __init__(self, veh_config, scene_config, control_config):
         self.veh_config = veh_config
-        self.scen_config = scen_config
+        self.scene_config = scene_config
         self.control_config = control_config
 
     def computeControl(self, state, oppo_states, curvature, t):
@@ -42,8 +42,8 @@ class Controller:
 
 """Sinusoidal steering with const acceleration (for debugging)"""
 class SinusoidalController(Controller):
-    def __init__(self,  veh_config, scen_config, control_config):
-        super().__init__(veh_config, scen_config, control_config)
+    def __init__(self,  veh_config, scene_config, control_config):
+        super().__init__(veh_config, scene_config, control_config)
 
     def computeControl(self, state, oppo_states, curvature, t):
         """
@@ -53,22 +53,63 @@ class SinusoidalController(Controller):
         return 2, w*np.pi/180*np.cos(w*t)
 
 
-class PDController(Controller):
-    def __init__(self,  veh_config, scen_config, control_config):
-        super().__init__(veh_config, scen_config, control_config)
+class ConstantVelocityController(Controller):
+    def __init__(self,  veh_config, scene_config, control_config):
+        super().__init__(veh_config, scene_config, control_config)
+        self.v_ref = 12
+        self.prev_v_error = 0
+        self.total_v_error = 0
+        self.delta_prev = 0
+        self.prev_theta_error = 0
+        self.total_theta_error = 0
+
+        self.delta_error = 0
+        self.prev_delta_error = 0
+        self.total_delta_error = 0
 
     def computeControl(self, state, oppo_states, curvature, t):
         """
         Calculate next input (rear wheel commanded acceleration, derivative of steering angle) 
         """
+        accel, delta_dot = 0, 0
+        s = state[0]
+        track = self.scene_config["track"]
+        dt = self.scene_config["dt"]
+        lf, lr = self.veh_config["lf"], self.veh_config["lr"]
+        k_v, k_theta, k_delta = self.control_config["k_v"], self.control_config["k_theta"], self.control_config["k_delta"]
 
-        return None, None
+        global_state = track.CLtoGlobal(state)
+        x, y, theta, vx, vy, w, delta = global_state
+        track_position = track.getTrackPosition(s)
+        x_track, y_track, theta_track = track_position
+        kappa = track.getCurvature(s)
+        radius = 1/kappa
+
+        v = np.linalg.norm([vx, vy])
+        v_error = (self.v_ref - v) / dt
+        accel = (k_v[0] * v_error) + (k_v[1] * self.total_v_error) + (k_v[2] * (v_error - self.prev_v_error))
+        self.prev_v_error = v_error
+        self.total_v_error += v_error
+
+        theta_error = (theta_track - theta)
+        theta_dot = (k_theta[0] * theta_error) + (k_theta[1] * self.total_theta_error) + (k_theta[2] * (theta_error - self.prev_theta_error))
+        self.prev_theta_error = theta_error
+        self.total_theta_error += theta_error
+
+        beta = np.arcsin(lr/radius)
+        delta_des = np.arctan((lf+lr)/lr * np.tan(beta))
+        delta_error = delta_des - delta
+        delta_dot = (k_delta[0] * delta_error) + (k_delta[1] * self.total_delta_error) + (k_delta[2] * (delta_error - self.prev_delta_error))
+        self.prev_delta_error = delta_error
+        self.total_delta_error += delta_error
+        
+        return accel, delta_dot
         
 
 if __name__ == "__main__":
-    from config import get_vehicle_config, get_scene_config, get_controller_config, get_sinusoidal_controller_config
+    from config import get_vehicle_config, get_scene_config, get_controller_config
     veh_config = get_vehicle_config()
-    scen_config = get_scene_config()
-    control_config = get_sinusoidal_controller_config()
-    cont = SinusoidalController(veh_config, scen_config, control_config)
+    scene_config = get_scene_config()
+    control_config = get_controller_config()
+    cont = SinusoidalController(veh_config, scene_config, control_config)
     # print(cont.computeControl([1,2,3],[[1,2,3]], 0.2))

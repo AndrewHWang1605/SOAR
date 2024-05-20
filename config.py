@@ -48,19 +48,9 @@ def get_vehicle_config():
     return veh_config
 
 
-def get_scene_config():
+def get_scene_config(track_type=OVAL_TRACK):
 
     scene_config = {}
-
-    track_type = OVAL_TRACK
-
-    scene_config["track"] = get_track_config(track_type)
-    scene_config["dt"] = 0.005
-
-    return scene_config
-
-
-def get_track_config(track_type):
 
     if track_type == OVAL_TRACK:
         track_config = {"track_half_width":10, "straight_length":100, "curve_radius":90, "ds":0.05}
@@ -68,21 +58,22 @@ def get_track_config(track_type):
     elif track_type == L_TRACK:
         track_config = {"track_half_width":15, "straight_length":100, "curve_radius":50, "ds":0.05}
         track = LTrack(track_config)
-    
-    # return track_config
-    return track
+
+    scene_config["track"] = track
+    scene_config["dt"] = 0.005
+
+    return scene_config
 
 def get_controller_config():
 
     controller_config = {}
 
-    controller_config["kp"] = 0.9
-    controller_config["kd"] = 0.1
-
-    return controller_config
-
-def get_sinusoidal_controller_config():
-    controller_config = {}
+    # SINUSOIDAL
     controller_config["omega"] = 1.5
-    return controller_config
+    
+    # PID CONSTANT VELOCITY
+    controller_config["k_v"] = [4e-2, 1e-3, 4e-1]
+    controller_config["k_theta"] = [8e-2, 1e-5, 5e0]
+    controller_config["k_delta"] = [4e0, 1e-3, 4e-3]
 
+    return controller_config

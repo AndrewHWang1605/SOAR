@@ -32,7 +32,7 @@ class Agent:
         self.scene_config = scene_config
         self.x = x0
         self.controller = controller
-        self.x_hist = x0
+        self.x_hist = np.array([x0])
         self.u_hist = None
 
     # Implement dynamics and update state one timestep later
@@ -61,7 +61,8 @@ class BicycleVehicle(Agent):
     """
     def step(self, oppo_states, curvature, t):
         print("\n")
-        accel, delta_dot = self.controller.computeControl(self.x[-1], oppo_states, curvature, t)
+        accel, delta_dot = self.controller.computeControl(self.x_hist[-1], oppo_states, curvature, t)
+        # accel, delta_dot = 0,0
         x_new = self.dynamics(accel, delta_dot)
         self.x = x_new
         self.x_hist = np.vstack((self.x_hist, self.x))
@@ -158,22 +159,23 @@ class BicycleVehicle(Agent):
         
 if __name__ == "__main__":
     from track import OvalTrack
-    from config import get_vehicle_config, get_scene_config, get_sinusoidal_controller_config
+    from config import get_vehicle_config, get_scene_config, get_controller_config
     import matplotlib.pyplot as plt
-    from controllers import SinusoidalController
+    from controllers import SinusoidalController, ConstantVelocityController
 
     veh_config = get_vehicle_config()
     scene_config = get_scene_config()
-    cont_config = get_sinusoidal_controller_config()
+    cont_config = get_controller_config()
      
     dt = scene_config["dt"]
     x0 = np.array([0, 0, 0, 12, 0, 0, 0])
-    cont = SinusoidalController(veh_config, scene_config, cont_config)
+    cont = ConstantVelocityController(veh_config, scene_config, cont_config)
+    # cont = SinusoidalController(veh_config, scene_config, cont_config)
     agent = BicycleVehicle(veh_config, scene_config, x0, cont)
 
     t_hist = [0]
     xg_hist = [x0]
-    for i in range(4000):
+    for i in range(15000):
         t = t_hist[-1] + dt
         t_hist.append(t)
         x_cl = agent.step(0, [], t)
