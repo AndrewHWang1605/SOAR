@@ -72,7 +72,7 @@ class ConstantVelocityController(Controller):
         Calculate next input (rear wheel commanded acceleration, derivative of steering angle) 
         """
         accel, delta_dot = 0, 0
-        s = state[0]
+        s, ey, epsi = state[:3]
         track = self.scene_config["track"]
         dt = self.scene_config["dt"]
         lf, lr = self.veh_config["lf"], self.veh_config["lr"]
@@ -85,25 +85,38 @@ class ConstantVelocityController(Controller):
         kappa = track.getCurvature(s)
         radius = 1/kappa
 
+        alpha_f, alpha_r = self.slipAngles(state)
+        alpha = np.mean([alpha_f, alpha_r])
+
         v = np.linalg.norm([vx, vy])
         v_error = (self.v_ref - v) / dt
         accel = (k_v[0] * v_error) + (k_v[1] * self.total_v_error) + (k_v[2] * (v_error - self.prev_v_error))
         self.prev_v_error = v_error
         self.total_v_error += v_error
 
-        theta_error = (theta_track - theta)
-        theta_dot = (k_theta[0] * theta_error) + (k_theta[1] * self.total_theta_error) + (k_theta[2] * (theta_error - self.prev_theta_error))
-        self.prev_theta_error = theta_error
-        self.total_theta_error += theta_error
+        if (theta_track > 13/14*np.pi and theta < 1/14*np.pi):
+            theta_error = theta_track - theta - 2*np.pi
+        elif (theta_track < 1/14*np.pi and theta > 13/14*np.pi):
+            theta_error = theta_track - theta + 2*np.pi
+        else:
+            theta_error = theta_track - theta
 
-        beta = np.arcsin(lr/radius)
-        delta_des = np.arctan((lf+lr)/lr * np.tan(beta))
-        delta_error = delta_des - delta
-        delta_dot = (k_delta[0] * delta_error) + (k_delta[1] * self.total_delta_error) + (k_delta[2] * (delta_error - self.prev_delta_error))
-        self.prev_delta_error = delta_error
-        self.total_delta_error += delta_error
-        
-        return accel, delta_dot
+        if (ey > 0 and theta_error < 0) or (ey < 0 and theta_error > 0):
+            print("theta_control")
+            self.total_theta_error += theta_error
+            theta_dot = (k_theta[0] * theta_error) + (k_theta[1] * self.total_theta_error) + (k_theta[2] * (theta_error - self.prev_theta_error))
+            self.prev_theta_error = theta_error
+            return accel, theta_dot
+        else:
+            print("delta_control")
+            beta = np.arcsin(lr/radius)
+            delta_des = np.arctan((lf+lr)/lr * np.tan(beta))
+            delta_error = delta_des - delta
+            self.total_delta_error += delta_error
+            delta_dot = (k_delta[0] * (delta_error)) + (k_delta[1] * self.total_delta_error) + (k_delta[2] * (delta_error - self.prev_delta_error))
+            self.prev_delta_error = delta_error
+            return accel, delta_dot
+    
         
 
 if __name__ == "__main__":

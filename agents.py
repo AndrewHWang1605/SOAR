@@ -60,7 +60,7 @@ class BicycleVehicle(Agent):
     oppo_states: Nxk 
     """
     def step(self, oppo_states, curvature, t):
-        print("\n")
+        
         accel, delta_dot = self.controller.computeControl(self.x_hist[-1], oppo_states, curvature, t)
         # accel, delta_dot = 0,0
         x_new = self.dynamics(accel, delta_dot)
@@ -105,7 +105,7 @@ class BicycleVehicle(Agent):
 
         # Propogate state variable forwards one timestep with Euler step
         x_dot = np.array([s_dot, ey_dot, epsi_dot, vx_dot, vy_dot, omega_dot, delta_dot])
-        print("xdot", np.round(x_dot, 4))
+        # print("xdot", np.round(x_dot, 4))
         x_new = self.x + x_dot*dt
         return x_new
 
@@ -143,7 +143,7 @@ class BicycleVehicle(Agent):
                 alpha_r = -np.arctan((vy - lr*omega) / vx)
                 
         # print("Pre-Slip Angles", vx, vy, omega, delta)
-        print("Slip Angles [deg]", alpha_f/np.pi * 180, alpha_r/np.pi*180)
+        # print("Slip Angles [deg]", alpha_f/np.pi * 180, alpha_r/np.pi*180)
         return alpha_f, alpha_r
     
 
@@ -156,7 +156,7 @@ class BicycleVehicle(Agent):
         Fd = 0.5 * rho * SA * Cd * vx**2
         return Fd
 
-        
+    
 if __name__ == "__main__":
     from track import OvalTrack
     from config import get_vehicle_config, get_scene_config, get_controller_config
@@ -175,11 +175,11 @@ if __name__ == "__main__":
 
     t_hist = [0]
     xg_hist = [x0]
-    for i in range(15000):
+    for i in range(50000):
         t = t_hist[-1] + dt
         t_hist.append(t)
         x_cl = agent.step(0, [], t)
-        print("CL coords", np.round(x_cl,4))
+        print("CL coords", np.round(x_cl,2), "\n")
         x_g = scene_config["track"].CLtoGlobal(x_cl)
         # print(str(i), " Global coords", np.round(x_g,2))
         xg_hist.append(x_g)
