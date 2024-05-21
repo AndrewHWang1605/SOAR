@@ -85,9 +85,6 @@ class ConstantVelocityController(Controller):
         kappa = track.getCurvature(s)
         radius = 1/kappa
 
-        alpha_f, alpha_r = self.slipAngles(state)
-        alpha = np.mean([alpha_f, alpha_r])
-
         v = np.linalg.norm([vx, vy])
         v_error = (self.v_ref - v) / dt
         accel = (k_v[0] * v_error) + (k_v[1] * self.total_v_error) + (k_v[2] * (v_error - self.prev_v_error))
