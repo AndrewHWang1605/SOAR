@@ -70,7 +70,6 @@ class BicycleVehicle(Agent):
     oppo_states: Nxk 
     """
     def step(self, oppo_states):
-        
         accel, delta_dot = self.controller.computeControl(self.x_hist[-1], oppo_states)
         accel, delta_dot = self.saturate_inputs(accel, delta_dot)
         x_new = self.dynamics(accel, delta_dot)
@@ -118,7 +117,6 @@ class BicycleVehicle(Agent):
 
     # Rear wheel drive, all acceleration goes onto rear wheels
     def longitudinalForce(self, accel):
-        print(accel)
         m = self.veh_config["m"]
         Fxf, Fxr = 0, m*accel
         return Fxf, Fxr
