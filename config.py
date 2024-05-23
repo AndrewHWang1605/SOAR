@@ -31,24 +31,26 @@ import numpy as np
 OVAL_TRACK = 0
 L_TRACK = 1
 
+
 def get_vehicle_config():
     
     veh_config = {}
 
-    veh_config["m"] = 2 #800       # kg mass
-    veh_config["Cd"] = 0.56     # drag coeff
-    veh_config["SA"] = 2        # m^2 frontal SA
-    veh_config["Iz"] = 0.03 #600      # kg/m^2 
-    veh_config["lf"] = 0.125 #2.5      # m length forward from CoM
-    veh_config["lr"] = 0.125 #2.0      # m length backward from CoM
-    veh_config["R"] = 0.5       # m radius of tire
+    veh_config["m"] = 2 #800            # kg mass
+    veh_config["Cd"] = 0.56             # drag coeff
+    veh_config["SA"] = 2                # m^2 frontal SA
+    veh_config["Iz"] = 0.03 #600        # kg/m^2 
+    veh_config["lf"] = 0.125 #2.5       # m length forward from CoM
+    veh_config["lr"] = 0.125 #2.0       # m length backward from CoM
+    veh_config["size"] = veh_config["lf"] + veh_config["lf"]
+    veh_config["R"] = 0.5               # m radius of tire
 
     veh_config["max_accel"] = 5 # m/s^2 Max acceleration (assumed symmetric accel/brake)
     veh_config["max_steer_rate"] = 3  # rad/s Max steering rate 
     veh_config["max_steer"] = 0.5 # rad Steering Lock
 
     # TODO: Confirm/Change
-    veh_config["c"] = 46        # N/rad wheel stiffness 
+    veh_config["c"] = 46                # N/rad wheel stiffness 
 
     return veh_config
 
@@ -74,6 +76,8 @@ def get_vehicle_opt_constraints(veh_config, scene_config):
     return veh_constraints
 
 
+
+
 def get_scene_config(track_type=OVAL_TRACK):
 
     scene_config = {}
@@ -89,8 +93,12 @@ def get_scene_config(track_type=OVAL_TRACK):
     scene_config["track"] = track
     scene_config["track_config"] = track_config
     scene_config["dt"] = 0.005
+    scene_config["sim_time"] = 20
 
     return scene_config
+
+
+
 
 def get_controller_config():
 

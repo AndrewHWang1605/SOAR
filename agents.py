@@ -27,44 +27,57 @@ Implement various agents
 import numpy as np
 
 class Agent:
-    def __init__(self, veh_config, scene_config, x0, controller):
+    def __init__(self, veh_config, scene_config, x0, controller, ID=999):
         self.veh_config = veh_config
         self.scene_config = scene_config
         self.x = x0
         self.controller = controller
         self.x_hist = np.array([x0])
+        self.x_global_hist = np.array([self.scene_config["track"].CLtoGlobal(x0)])
         self.u_hist = None
+        self.ID = ID
 
     # Implement dynamics and update state one timestep later
-    def step(self, oppo_states, t):
+    def step(self, oppo_states):
         raise NotImplementedError("Inheritance not implemented correctly")
 
     def getLastState(self):
-        return self.x[-1]
+        return self.x_hist[-1]
+    
+    def getStateHistory(self):
+        return self.x_hist
+    
+    def getGlobalStateHistory(self):
+        return self.x_global_hist
+    
+    def getControlHistory(self):
+        return self.u_hist
 
-    @property
     def ID(self):
-        return self.config["ID"] 
+        return self.ID
     
     @property
     def size(self):
-        return self.congif["size"]
+        return self.veh_config["size"]
 
    
 class BicycleVehicle(Agent):
-    def __init__(self, veh_config, scene_config, x0, controller):
-        super().__init__(veh_config, scene_config, x0, controller)
+    def __init__(self, veh_config, scene_config, x0, controller, ID=999):
+        super().__init__(veh_config, scene_config, x0, controller, ID)
 
     """
     Implement dynamics and update state one timestep later
     oppo_states: Nxk 
     """
-    def step(self, oppo_states, curvature, t):
-        accel, delta_dot = self.controller.computeControl(self.x_hist[-1], oppo_states, curvature, t)
+    def step(self, oppo_states):
+        
+        accel, delta_dot = self.controller.computeControl(self.x_hist[-1], oppo_states)
         accel, delta_dot = self.saturate_inputs(accel, delta_dot)
         x_new = self.dynamics(accel, delta_dot)
         self.x = x_new
+        self.x_global = self.scene_config["track"].CLtoGlobal(x_new)
         self.x_hist = np.vstack((self.x_hist, self.x))
+        self.x_global_hist = np.vstack((self.x_global_hist, self.x_global))
         self.u_hist = np.vstack((self.u_hist, np.array([accel, delta_dot]))) if self.u_hist is not None else np.array([accel, delta_dot])
         return x_new
     
@@ -166,7 +179,7 @@ if __name__ == "__main__":
     for i in range(50000):
         t = t_hist[-1] + dt
         t_hist.append(t)
-        x_cl = agent.step(0, [], t)
+        x_cl = agent.step(0)
         print("CL coords", np.round(x_cl,2), "\n")
         x_g = scene_config["track"].CLtoGlobal(x_cl)
         # print(str(i), " Global coords", np.round(x_g,2))

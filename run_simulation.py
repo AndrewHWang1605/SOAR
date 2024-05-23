@@ -27,27 +27,33 @@ Implement simulator
 
 import numpy as np
 from agents import BicycleVehicle
-from track import Track
+from track import OvalTrack, LTrack
+from config import get_vehicle_config, get_scene_config, get_controller_config
+import matplotlib.pyplot as plt
+from controllers import SinusoidalController, ConstantVelocityController
 
 
 class Simulator:
-    def __init__(self, scen_config):
-        self.scen_config = scen_config
+    def __init__(self, scene_config):
+        self.scene_config = scene_config
         self.agents = []
+        self.sim_time = self.scene_config["sim_time"]
+        self.dt = self.scene_config["dt"]
+        self.t_hist = np.arange(0, self.sim_time+self.dt, self.dt)
 
     @property
     def track(self):
-        return self.scen_config["track"]
+        return self.scene_config["track"]
     
     def addAgent(self, agent):
         self.agents.append(agent)
 
     def runSim(self):
-        sim_time = self.scen_config["sim_time"]
-        dt = self.scen_config["dt"]
-        sim_steps = int(sim_time / dt)
-
+        sim_steps = int(self.sim_time / self.dt)
         for i in range(sim_steps):
+            if i%1000 == 0:
+                print("Running simulation: ", i, " timesteps passed")
+
             agent_states = {}
             for agent in self.agents:
                 agent_states[agent.ID] = agent.getLastState()
@@ -77,9 +83,9 @@ class Simulator:
                 oppo_agent_state_CL = oppo_agent.getLastState()
 
                 # Convert agent states to global frame from curvilinear
-                track = self.scen_config["track"]
-                agent_state_global = track.CLToGlobal(agent_state_CL)
-                oppo_agent_state_global = track.CLToGlobal(oppo_agent_state_CL)
+                track = self.scene_config["track"]
+                agent_state_global = track.CLtoGlobal(agent_state_CL)
+                oppo_agent_state_global = track.CLtoGlobal(oppo_agent_state_CL)
 
                 # Check agent collision with Euclidean distances, add agent IDs to set if collision
                 agent_distance = np.linalg.norm(agent_state_global[:2] - oppo_agent_state_global[:2])
@@ -89,7 +95,68 @@ class Simulator:
                     collision_agents.update([agent.ID, oppo_agent.ID])
 
         return collision, list(collision_agents)
+    
+
+    def plot_cl_states(self):
+        titles = ["s", "ey", "epsi", "vx", "vy", "omega", "delta", "accel", "delta_dot"]
+        plt.figure(0, figsize=(15,8))
+        for agent in self.agents:
+            x_hist = agent.getStateHistory()
+            u_hist = agent.getControlHistory()
+            for i in range(7):
+                plt.subplot(3,3,i+1)
+                plt.plot(self.t_hist, x_hist[:,i])
+                plt.title(titles[i])
+            for i in range(7,9):
+                plt.subplot(3,3,i+1)
+                plt.plot(self.t_hist[:-1], u_hist[:,i-7])
+                plt.title(titles[i])
+        plt.legend([str(agent.ID) for agent in self.agents])
+
+
+    def plot_agent_track(self):
+        plt.figure(1)
+        self.scene_config["track"].plotTrack()
+        for agent in self.agents:
+            x_global_hist = agent.getGlobalStateHistory()
+            plt.scatter(x_global_hist[0, 0], x_global_hist[0, 1], marker='D')
+            plt.plot(x_global_hist[:, 0], x_global_hist[:, 1], label=str(agent.ID))
+
+
+
+
 
 
 if __name__ == "__main__":
-    pass
+    print("Starting simulator main")
+
+    """Initialize configurations"""
+    veh_config = get_vehicle_config()
+    scene_config = get_scene_config()
+    cont_config = get_controller_config()
+     
+    sim = Simulator(scene_config)
+    
+    x0_1 = np.array([0, 0, 0, 12, 0, 0, 0])
+    controller1 = ConstantVelocityController(veh_config, scene_config, cont_config)
+    agent1 = BicycleVehicle(veh_config, scene_config, x0_1, controller1, 1)
+    sim.addAgent(agent1)
+
+    x0_2 = np.array([250, 0, 0, 12, 0, 0, 0])
+    controller2 = ConstantVelocityController(veh_config, scene_config, cont_config)
+    agent2 = BicycleVehicle(veh_config, scene_config, x0_2, controller2, 2)
+    sim.addAgent(agent2)
+
+    x0_3 = np.array([500, 0, 0, 12, 0, 0, 0])
+    controller3 = ConstantVelocityController(veh_config, scene_config, cont_config)
+    agent3 = BicycleVehicle(veh_config, scene_config, x0_3, controller3, 3)
+    sim.addAgent(agent3)
+    
+    sim.runSim()
+
+    sim.plot_agent_track()
+    sim.plot_cl_states()
+    plt.show()
+    
+
+    
