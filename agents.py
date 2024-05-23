@@ -69,7 +69,7 @@ class BicycleVehicle(Agent):
     Implement dynamics and update state one timestep later
     oppo_states: Nxk 
     """
-    def step(self, oppo_states, curvature, t):
+    def step(self, oppo_states):
         
         accel, delta_dot = self.controller.computeControl(self.x_hist[-1], oppo_states)
         accel, delta_dot = self.saturate_inputs(accel, delta_dot)
