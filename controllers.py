@@ -32,7 +32,7 @@ class Controller:
         self.scene_config = scene_config
         self.control_config = control_config
 
-    def computeControl(self, state, oppo_states, curvature, t):
+    def computeControl(self, state, oppo_states):
         """
         Calculate next input (rear wheel commanded acceleration, derivative of steering angle) 
         """
@@ -45,7 +45,7 @@ class SinusoidalController(Controller):
     def __init__(self,  veh_config, scene_config, control_config):
         super().__init__(veh_config, scene_config, control_config)
 
-    def computeControl(self, state, oppo_states, curvature, t):
+    def computeControl(self, state, oppo_states):
         """
         Calculate next input (rear wheel commanded acceleration, derivative of steering angle) 
         """
@@ -67,7 +67,7 @@ class ConstantVelocityController(Controller):
         self.prev_delta_error = 0
         self.total_delta_error = 0
 
-    def computeControl(self, state, oppo_states, curvature, t):
+    def computeControl(self, state, oppo_states):
         """
         Calculate next input (rear wheel commanded acceleration, derivative of steering angle) 
         """
@@ -83,7 +83,6 @@ class ConstantVelocityController(Controller):
         track_position = track.getTrackPosition(s)
         x_track, y_track, theta_track = track_position
         kappa = track.getCurvature(s)
-        radius = 1/kappa
 
         v = np.linalg.norm([vx, vy])
         v_error = (self.v_ref - v) / dt
@@ -91,22 +90,21 @@ class ConstantVelocityController(Controller):
         self.prev_v_error = v_error
         self.total_v_error += v_error
 
+        theta_error = theta_track - theta
         if (theta_track > 13/14*np.pi and theta < 1/14*np.pi):
-            theta_error = theta_track - theta - 2*np.pi
+            theta_error -= 2*np.pi
         elif (theta_track < 1/14*np.pi and theta > 13/14*np.pi):
-            theta_error = theta_track - theta + 2*np.pi
-        else:
-            theta_error = theta_track - theta
-
+            theta_error += 2*np.pi
+            
         if (ey > 0 and theta_error < 0) or (ey < 0 and theta_error > 0):
-            print("theta_control")
+            # print("theta_control")
             self.total_theta_error += theta_error
             theta_dot = (k_theta[0] * theta_error) + (k_theta[1] * self.total_theta_error) + (k_theta[2] * (theta_error - self.prev_theta_error))
             self.prev_theta_error = theta_error
             return accel, theta_dot
         else:
-            print("delta_control")
-            beta = np.arcsin(lr/radius)
+            # print("delta_control")
+            beta = np.arcsin(lr * kappa)
             delta_des = np.arctan((lf+lr)/lr * np.tan(beta))
             delta_error = delta_des - delta
             self.total_delta_error += delta_error
