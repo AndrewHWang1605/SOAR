@@ -26,7 +26,7 @@ Implement track
 """
 import numpy as np
 import matplotlib.pyplot as plt
-
+import casadi as ca
 
 class Track:
     def __init__(self, track_config):
@@ -52,7 +52,8 @@ class Track:
         return global_state
 
     def getCurvature(self, s):
-        nearest_s_ind = np.argmin(np.abs(self.s - s%self.total_len))
+        s = np.mod(np.mod(s, self.total_len) + self.total_len, self.total_len)
+        nearest_s_ind = np.where(s >= self.s)[0][-1]
         return self.track_curvature[nearest_s_ind]
 
     def getTrackPosition(self, s):
@@ -106,7 +107,7 @@ class OvalTrack(Track):
         super().__init__(track_config)
 
     def generateTrackRep(self, track_config):
-        track_half_width = track_config["track_half_width"]
+        self.half_width = track_config["track_half_width"]
         straight_len = track_config["straight_length"]
         curve_rad = track_config["curve_radius"]
         ds = track_config["ds"]
@@ -115,13 +116,14 @@ class OvalTrack(Track):
         segment_change = np.cumsum([straight_len, curve_rad*np.pi, straight_len, curve_rad*np.pi])
 
         self.total_len, self.s, self.track_curvature, self.track_xypsi = self.generateTrackFromCurvature(segment_curvature, segment_change, ds) 
+        self.name = "OVAL w/Straight {}, Curve Radius {}".format(track_config["straight_length"], track_config["curve_radius"]) 
 
 class LTrack(Track):
     def __init__(self, track_config):
         super().__init__(track_config)
 
     def generateTrackRep(self, track_config):
-        track_half_width = track_config["track_half_width"]
+        self.half_width = track_config["track_half_width"]
         straight_len = track_config["straight_length"]
         curve_rad = track_config["curve_radius"]
         ds = track_config["ds"]
@@ -130,7 +132,7 @@ class LTrack(Track):
         segment_change = np.cumsum([straight_len, curve_rad*np.pi, curve_rad*np.pi/2, curve_rad*np.pi, straight_len, curve_rad*np.pi/2])
 
         self.total_len, self.s, self.track_curvature, self.track_xypsi = self.generateTrackFromCurvature(segment_curvature, segment_change, ds) 
-
+        self.name = "L TRACK w/Straight {}, Curve Radius {}".format(track_config["straight_length"], track_config["curve_radius"]) 
 
 if __name__ == "__main__":
     # Oval Track
