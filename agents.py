@@ -126,23 +126,7 @@ class BicycleVehicle(Agent):
 
         alpha_f = delta - np.arctan((vy + lf*omega) / (vx+eps))
         alpha_r = -np.arctan((vy - lr*omega) / (vx+eps))
-
-        # if vx < 1e-3:
-        #     alpha_f, alpha_r = 0,0
-        # else: 
-
-        #     if abs((vy + lf*omega) / vx) < 0.1:
-        #         alpha_f = (vx*delta - vy - lf*omega) / vx
-        #     else:
-        #         alpha_f = delta - np.arctan((vy + lf*omega) / vx)
-            
-        #     if abs((vy - lr*omega) / vx) < 0.1:
-        #         alpha_r = (-vy + lr*omega) / vx
-        #     else:
-        #         alpha_r = -np.arctan((vy - lr*omega) / vx)
-
-
-        #TODO: Simplify this?                
+                 
         # print("Pre-Slip Angles", vx, vy, omega, delta)
         # print("Slip Angles [deg]", alpha_f/np.pi * 180, alpha_r/np.pi*180)
         return alpha_f, alpha_r
