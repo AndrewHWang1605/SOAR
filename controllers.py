@@ -54,9 +54,9 @@ class SinusoidalController(Controller):
 
 
 class ConstantVelocityController(Controller):
-    def __init__(self,  veh_config, scene_config, control_config):
+    def __init__(self,  veh_config, scene_config, control_config, v_ref=12):
         super().__init__(veh_config, scene_config, control_config)
-        self.v_ref = 12
+        self.v_ref = v_ref
         self.prev_v_error = 0
         self.total_v_error = 0
         self.delta_prev = 0
@@ -85,10 +85,12 @@ class ConstantVelocityController(Controller):
         kappa = track.getCurvature(s)
 
         v = np.linalg.norm([vx, vy])
-        v_error = (self.v_ref - v) / dt
+        v_error = (self.v_ref - v) 
         accel = (k_v[0] * v_error) + (k_v[1] * self.total_v_error) + (k_v[2] * (v_error - self.prev_v_error))
+        if (np.abs(accel) < self.veh_config["max_accel"]):
+            self.total_v_error += v_error*dt
         self.prev_v_error = v_error
-        self.total_v_error += v_error
+        accel = np.clip(accel, -self.veh_config["max_accel"], self.veh_config["max_accel"])
 
         theta_error = theta_track - theta
         if (theta_track > 13/14*np.pi and theta < 1/14*np.pi):

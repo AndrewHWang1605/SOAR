@@ -98,8 +98,6 @@ def get_scene_config(track_type=OVAL_TRACK):
     return scene_config
 
 
-
-
 def get_controller_config():
 
     controller_config = {}
@@ -108,7 +106,7 @@ def get_controller_config():
     controller_config["omega"] = 1.5
     
     # PID CONSTANT VELOCITY
-    controller_config["k_v"] = [2e-2, 1e-3, 2e-1]
+    controller_config["k_v"] = [0.5, 1e-3, 2e-1]
     controller_config["k_theta"] = [2e-2, 2e-4, 8e0]
     controller_config["k_delta"] = [1e1, 4e0, 7e-1]
 

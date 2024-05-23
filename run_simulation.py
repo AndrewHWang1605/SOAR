@@ -105,11 +105,11 @@ class Simulator:
             u_hist = agent.getControlHistory()
             for i in range(7):
                 plt.subplot(3,3,i+1)
-                plt.plot(self.t_hist, x_hist[:,i])
+                plt.plot(self.t_hist[:x_hist.shape[0]], x_hist[:,i])
                 plt.title(titles[i])
             for i in range(7,9):
                 plt.subplot(3,3,i+1)
-                plt.plot(self.t_hist[:-1], u_hist[:,i-7])
+                plt.plot(self.t_hist[:u_hist.shape[0]], u_hist[:,i-7])
                 plt.title(titles[i])
         plt.legend([str(agent.ID) for agent in self.agents])
 
@@ -122,11 +122,6 @@ class Simulator:
             plt.scatter(x_global_hist[0, 0], x_global_hist[0, 1], marker='D')
             plt.plot(x_global_hist[:, 0], x_global_hist[:, 1], label=str(agent.ID))
 
-
-
-
-
-
 if __name__ == "__main__":
     print("Starting simulator main")
 
@@ -137,20 +132,20 @@ if __name__ == "__main__":
      
     sim = Simulator(scene_config)
     
-    x0_1 = np.array([0, 0, 0, 12, 0, 0, 0])
-    controller1 = ConstantVelocityController(veh_config, scene_config, cont_config)
+    x0_1 = np.array([248, 0, 0, 12, 0, 0, 0])
+    controller1 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=15)
     agent1 = BicycleVehicle(veh_config, scene_config, x0_1, controller1, 1)
     sim.addAgent(agent1)
 
-    x0_2 = np.array([250, 0, 0, 12, 0, 0, 0])
-    controller2 = ConstantVelocityController(veh_config, scene_config, cont_config)
+    x0_2 = np.array([250, 0, 0, 14, 0, 0, 0])
+    controller2 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=10)
     agent2 = BicycleVehicle(veh_config, scene_config, x0_2, controller2, 2)
     sim.addAgent(agent2)
 
     x0_3 = np.array([500, 0, 0, 12, 0, 0, 0])
     controller3 = ConstantVelocityController(veh_config, scene_config, cont_config)
     agent3 = BicycleVehicle(veh_config, scene_config, x0_3, controller3, 3)
-    sim.addAgent(agent3)
+    # sim.addAgent(agent3)
     
     sim.runSim()
 
