@@ -26,6 +26,7 @@ Implement configs
 """
 
 from track import OvalTrack, LTrack
+import numpy as np
 
 OVAL_TRACK = 0
 L_TRACK = 1
@@ -42,10 +43,35 @@ def get_vehicle_config():
     veh_config["lr"] = 0.125 #2.0      # m length backward from CoM
     veh_config["R"] = 0.5       # m radius of tire
 
+    veh_config["max_accel"] = 5 # m/s^2 Max acceleration (assumed symmetric accel/brake)
+    veh_config["max_steer_rate"] = 3  # rad/s Max steering rate 
+    veh_config["max_steer"] = 0.5 # rad Steering Lock
+
     # TODO: Confirm/Change
     veh_config["c"] = 46        # N/rad wheel stiffness 
 
     return veh_config
+
+def get_vehicle_opt_constraints(veh_config, scene_config):
+    veh_constraints = {}
+
+    veh_constraints["lb_s"] = 0.0 # minimum longitudinal position
+    veh_constraints["lb_ey"] = -scene_config["track_config"]["track_half_width"] # minimum lateral error
+    veh_constraints["lb_epsi"] = -np.pi/2 # rad minimum heading error
+    veh_constraints["lb_vx"] = 0 # m/s minimum longitudinal velocity
+    veh_constraints["lb_vy"] = -10 # m/s minimum lateral velocity
+    veh_constraints["lb_omega"] = -1 # rad/s minimum angular velocity
+    veh_constraints["lb_delta"] = -veh_config["max_steer"] # rad minimum angular velocity
+
+    veh_constraints["ub_s"] = 1.2*scene_config["track"].total_len # maximum longitudinal position
+    veh_constraints["ub_ey"] = scene_config["track_config"]["track_half_width"] # maximum lateral error
+    veh_constraints["ub_epsi"] = np.pi/2 # rad maximum heading error
+    veh_constraints["ub_vx"] = 60 # m/s maximum longitudinal velocity
+    veh_constraints["ub_vy"] = 10 # m/s maximum lateral velocity
+    veh_constraints["ub_omega"] = 1 # rad/s maximum angular velocity
+    veh_constraints["ub_delta"] = veh_config["max_steer"] # rad/s maximum angular velocity
+
+    return veh_constraints
 
 
 def get_scene_config(track_type=OVAL_TRACK):
@@ -59,7 +85,9 @@ def get_scene_config(track_type=OVAL_TRACK):
         track_config = {"track_half_width":15, "straight_length":100, "curve_radius":50, "ds":0.05}
         track = LTrack(track_config)
 
+
     scene_config["track"] = track
+    scene_config["track_config"] = track_config
     scene_config["dt"] = 0.005
 
     return scene_config

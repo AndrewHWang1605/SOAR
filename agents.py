@@ -60,9 +60,8 @@ class BicycleVehicle(Agent):
     oppo_states: Nxk 
     """
     def step(self, oppo_states, curvature, t):
-        
         accel, delta_dot = self.controller.computeControl(self.x_hist[-1], oppo_states, curvature, t)
-        # accel, delta_dot = 0,0
+        accel, delta_dot = self.saturate_inputs(accel, delta_dot)
         x_new = self.dynamics(accel, delta_dot)
         self.x = x_new
         self.x_hist = np.vstack((self.x_hist, self.x))
@@ -89,10 +88,6 @@ class BicycleVehicle(Agent):
         Fyf, Fyr = self.lateralForce()
         Fd = self.dragForce()
 
-        # _, _, track_psi = self.scene_config["track"].getTrackPosition(s)
-        # print("trackpsi", track_psi, "error psi", epsi)
-        # print("Fxf", np.round(Fxf,4), "Fxr", np.round(Fxr,4), "Fyf", np.round(Fyf,4), "Fyr", np.round(Fyr,4), )
-
         # Calculate x_dot components from dynamics equations
         s_dot = (vx*cos_epsi - vy*sin_epsi) / (1 - ey * kappa)
         ey_dot = vx*sin_epsi + vy*cos_epsi
@@ -101,17 +96,16 @@ class BicycleVehicle(Agent):
         vy_dot = 1/m * (Fyr + Fyf*cos_delta - m*vx*omega)
         omega_dot = 1/Iz * (lf*Fyf*cos_delta - lr*Fyr)
 
-        # print("vx_dot", np.round(vx_dot,4), "Fyf", np.round(Fyf,4), "Fyr", np.round(Fyr,4), "Fxf", np.round(Fxf,4))
-
         # Propogate state variable forwards one timestep with Euler step
         x_dot = np.array([s_dot, ey_dot, epsi_dot, vx_dot, vy_dot, omega_dot, delta_dot])
         # print("xdot", np.round(x_dot, 4))
         x_new = self.x + x_dot*dt
+        x_new[6] = np.clip(x_new[6], -self.veh_config["max_steer"], self.veh_config["max_steer"])
         return x_new
 
-    
     # Rear wheel drive, all acceleration goes onto rear wheels
     def longitudinalForce(self, accel):
+        print(accel)
         m = self.veh_config["m"]
         Fxf, Fxr = 0, m*accel
         return Fxf, Fxr
@@ -128,10 +122,15 @@ class BicycleVehicle(Agent):
         vx, vy, omega, delta = self.x[3:]
         lf = self.veh_config["lf"]
         lr = self.veh_config["lr"]
+        eps = 1e-6 # Avoid divide by 0
+
+        # alpha_f = delta - np.arctan((vy + lf*omega) / (vx+eps))
+        # alpha_r = -np.arctan((vy - lr*omega) / (vx+eps))
 
         if vx < 1e-3:
             alpha_f, alpha_r = 0,0
         else: 
+
             if abs((vy + lf*omega) / vx) < 0.1:
                 alpha_f = (vx*delta - vy - lf*omega) / vx
             else:
@@ -141,12 +140,13 @@ class BicycleVehicle(Agent):
                 alpha_r = (-vy + lr*omega) / vx
             else:
                 alpha_r = -np.arctan((vy - lr*omega) / vx)
-                
+
+
+        #TODO: Simplify this?                
         # print("Pre-Slip Angles", vx, vy, omega, delta)
         # print("Slip Angles [deg]", alpha_f/np.pi * 180, alpha_r/np.pi*180)
         return alpha_f, alpha_r
     
-
     # Frontal drag force of vehicle
     def dragForce(self):
         vx = self.x[4]
@@ -156,7 +156,11 @@ class BicycleVehicle(Agent):
         Fd = 0.5 * rho * SA * Cd * vx**2
         return Fd
 
-    
+    def saturate_inputs(self, accel, delta_dot):
+        accel_clipped = np.clip(accel, -self.veh_config["max_accel"], self.veh_config["max_accel"])
+        delta_dot_clipped = np.clip(delta_dot, -self.veh_config["max_steer_rate"], self.veh_config["max_steer_rate"])
+        return accel_clipped, delta_dot_clipped
+
 if __name__ == "__main__":
     from track import OvalTrack
     from config import get_vehicle_config, get_scene_config, get_controller_config
