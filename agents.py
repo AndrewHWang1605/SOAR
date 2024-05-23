@@ -124,22 +124,22 @@ class BicycleVehicle(Agent):
         lr = self.veh_config["lr"]
         eps = 1e-6 # Avoid divide by 0
 
-        # alpha_f = delta - np.arctan((vy + lf*omega) / (vx+eps))
-        # alpha_r = -np.arctan((vy - lr*omega) / (vx+eps))
+        alpha_f = delta - np.arctan((vy + lf*omega) / (vx+eps))
+        alpha_r = -np.arctan((vy - lr*omega) / (vx+eps))
 
-        if vx < 1e-3:
-            alpha_f, alpha_r = 0,0
-        else: 
+        # if vx < 1e-3:
+        #     alpha_f, alpha_r = 0,0
+        # else: 
 
-            if abs((vy + lf*omega) / vx) < 0.1:
-                alpha_f = (vx*delta - vy - lf*omega) / vx
-            else:
-                alpha_f = delta - np.arctan((vy + lf*omega) / vx)
+        #     if abs((vy + lf*omega) / vx) < 0.1:
+        #         alpha_f = (vx*delta - vy - lf*omega) / vx
+        #     else:
+        #         alpha_f = delta - np.arctan((vy + lf*omega) / vx)
             
-            if abs((vy - lr*omega) / vx) < 0.1:
-                alpha_r = (-vy + lr*omega) / vx
-            else:
-                alpha_r = -np.arctan((vy - lr*omega) / vx)
+        #     if abs((vy - lr*omega) / vx) < 0.1:
+        #         alpha_r = (-vy + lr*omega) / vx
+        #     else:
+        #         alpha_r = -np.arctan((vy - lr*omega) / vx)
 
 
         #TODO: Simplify this?                
