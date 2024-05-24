@@ -92,7 +92,7 @@ class Track:
                 loop_back_start = track_xypsi[i,:] + np.array([dx*np.cos(dtheta), dx*np.sin(dtheta), theta])
                 err = track_xypsi[0,:]-loop_back_start
                 err[2] = 1-np.cos(err[2])
-                print("Track Closure Error", err)
+                # print("Track Closure Error", err)
                 # assert np.all(err < np.array([0.1, 0.1, 1-np.cos(0.1)]))
 
         return total_len, s, track_curvature, track_xypsi

@@ -40,6 +40,8 @@ class Simulator:
         self.sim_time = self.scene_config["sim_time"]
         self.dt = self.scene_config["dt"]
         self.t_hist = np.arange(0, self.sim_time+self.dt, self.dt)
+        self.sim_success = True
+        self.collision_agents = []
 
     @property
     def track(self):
@@ -48,7 +50,8 @@ class Simulator:
     def addAgent(self, agent):
         self.agents.append(agent)
 
-    def runSim(self):
+    def runSim(self, end_plot=False):
+        retVal = True
         sim_steps = int(self.sim_time / self.dt)
         for i in range(sim_steps):
             if i%1000 == 0:
@@ -61,12 +64,21 @@ class Simulator:
             collision, collision_agents = self.checkCollisions()
             if collision:
                 print("Collision detected for agents:", *collision_agents)
-                return False
+                self.sim_success = False
+                self.collision_agents = np.array(collision_agents)
+                retVal = False
+                break
 
             for agent in self.agents:
                 agent.step(agent_states)
 
-        return True
+        self.t_hist = self.t_hist[:i+2]
+
+        if end_plot:
+            self.plot_agent_track()
+            self.plot_cl_states()
+            plt.show()
+        return retVal
     
 
     """Check for collisions between all agents"""
@@ -97,6 +109,23 @@ class Simulator:
         return collision, list(collision_agents)
     
 
+    def exportSimData(self):
+        # Ensure entire array is printed in string to csv
+        np.set_printoptions(threshold=np.inf)
+
+        sim_data = {}
+
+        sim_data["sim_success"] = self.sim_success
+        sim_data["collision_agents"] = self.collision_agents
+        sim_data["t"] = np.array2string(self.t_hist, separator=',', suppress_small=True)
+        sim_data["agent_count"] = len(self.agents)
+        for agent in self.agents:
+            sim_data["x" + str(agent.ID)] = np.array2string(agent.getStateHistory(), separator=',', suppress_small=True)
+            sim_data["u" + str(agent.ID)] = np.array2string(agent.getControlHistory(), separator=',', suppress_small=True)
+
+        return sim_data
+
+
     def plot_cl_states(self):
         titles = ["s", "ey", "epsi", "vx", "vy", "omega", "delta", "accel", "delta_dot"]
         plt.figure(0, figsize=(15,8))
@@ -122,6 +151,9 @@ class Simulator:
             plt.scatter(x_global_hist[0, 0], x_global_hist[0, 1], marker='D')
             plt.plot(x_global_hist[:, 0], x_global_hist[:, 1], label=str(agent.ID))
 
+
+
+
 if __name__ == "__main__":
     print("Starting simulator main")
 
@@ -132,12 +164,12 @@ if __name__ == "__main__":
      
     sim = Simulator(scene_config)
     
-    x0_1 = np.array([248, 0, 0, 12, 0, 0, 0])
+    x0_1 = np.array([240, 0, 0, 15, 0, 0, 0])
     controller1 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=15)
     agent1 = BicycleVehicle(veh_config, scene_config, x0_1, controller1, 1)
     sim.addAgent(agent1)
 
-    x0_2 = np.array([250, 0, 0, 14, 0, 0, 0])
+    x0_2 = np.array([260, 0, 0, 12, 0, 0, 0])
     controller2 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=10)
     agent2 = BicycleVehicle(veh_config, scene_config, x0_2, controller2, 2)
     sim.addAgent(agent2)
@@ -147,11 +179,7 @@ if __name__ == "__main__":
     agent3 = BicycleVehicle(veh_config, scene_config, x0_3, controller3, 3)
     # sim.addAgent(agent3)
     
-    sim.runSim()
-
-    sim.plot_agent_track()
-    sim.plot_cl_states()
-    plt.show()
+    sim.runSim(True)
     
 
     
