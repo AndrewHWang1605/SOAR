@@ -42,7 +42,7 @@ def get_vehicle_config():
     veh_config["Iz"] = 0.03 #600        # kg/m^2 
     veh_config["lf"] = 0.125 #2.5       # m length forward from CoM
     veh_config["lr"] = 0.125 #2.0       # m length backward from CoM
-    veh_config["size"] = veh_config["lf"] + veh_config["lf"]
+    veh_config["size"] = 2
     veh_config["R"] = 0.5               # m radius of tire
 
     veh_config["max_accel"] = 5 # m/s^2 Max acceleration (assumed symmetric accel/brake)
