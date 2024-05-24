@@ -36,21 +36,21 @@ def get_vehicle_config():
     
     veh_config = {}
 
-    veh_config["m"] = 2 #800            # kg mass
+    veh_config["m"] = 800 #2            # kg mass
     veh_config["Cd"] = 0.56             # drag coeff
     veh_config["SA"] = 2                # m^2 frontal SA
-    veh_config["Iz"] = 0.03 #600        # kg/m^2 
-    veh_config["lf"] = 0.125 #2.5       # m length forward from CoM
-    veh_config["lr"] = 0.125 #2.0       # m length backward from CoM
-    veh_config["size"] = 2
-    veh_config["R"] = 0.5               # m radius of tire
+    veh_config["Iz"] = 1800 #0.03       # kg/m^2 
+    veh_config["lf"] = 2.5 #0.125       # m length forward from CoM
+    veh_config["lr"] = 2.0 #0.125    # m length backward from CoM
+    veh_config["size"] = veh_config["lf"] + veh_config["lr"]
+    # veh_config["R"] = 0.5               # m radius of tire
 
-    veh_config["max_accel"] =15 # m/s^2 Max acceleration (assumed symmetric accel/brake)
+    veh_config["max_accel"] = 10 # m/s^2 Max acceleration (assumed symmetric accel/brake)
     veh_config["max_steer_rate"] = 3  # rad/s Max steering rate 
     veh_config["max_steer"] = 0.5 # rad Steering Lock
 
     # TODO: Confirm/Change
-    veh_config["c"] = 46                # N/rad wheel stiffness 
+    veh_config["c"] = 867 * 180/np.pi  # N/rad wheel stiffness  #https://www.mas.bg.ac.rs/_media/istrazivanje/fme/vol41/1/08_gvorotovic.pdf
 
     return veh_config
 
@@ -61,15 +61,15 @@ def get_vehicle_opt_constraints(veh_config, scene_config):
     veh_constraints["lb_ey"] = -scene_config["track_config"]["track_half_width"] # minimum lateral error
     veh_constraints["lb_epsi"] = -10*np.pi/180 # rad minimum heading error
     veh_constraints["lb_vx"] = 0 # m/s minimum longitudinal velocity
-    veh_constraints["lb_vy"] = -10 # m/s minimum lateral velocity
+    veh_constraints["lb_vy"] = -2 # m/s minimum lateral velocity
     veh_constraints["lb_omega"] = -1 # rad/s minimum angular velocity
     veh_constraints["lb_delta"] = -veh_config["max_steer"] # rad minimum angular velocity
 
     veh_constraints["ub_s"] = 1.2*scene_config["track"].total_len # maximum longitudinal position
     veh_constraints["ub_ey"] = scene_config["track_config"]["track_half_width"] # maximum lateral error
     veh_constraints["ub_epsi"] = 10*np.pi/180 # rad maximum heading error
-    veh_constraints["ub_vx"] = 60 # m/s maximum longitudinal velocity
-    veh_constraints["ub_vy"] = 10 # m/s maximum lateral velocity
+    veh_constraints["ub_vx"] = 10 # m/s maximum longitudinal velocity
+    veh_constraints["ub_vy"] = 2 # m/s maximum lateral velocity
     veh_constraints["ub_omega"] = 1 # rad/s maximum angular velocity
     veh_constraints["ub_delta"] = veh_config["max_steer"] # rad/s maximum angular velocity
 
