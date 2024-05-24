@@ -1,3 +1,32 @@
+"""
+MIT License
+
+Copyright (c) 2024 Andrew Wang, Bryan Yang
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+"""
+Implement data collection module
+"""
+
+
+
 import numpy as np
 import csv, ast, sys
 import pandas as pd
@@ -62,15 +91,16 @@ def agent_rand_init(agent_count):
     past_starts = []
 
     for i in range(agent_count):
-        new_start = np.random.randint(0, 500)
+        new_start = np.random.randint(0, 720)
         while len(past_starts) > 0:
             if np.any(np.abs(np.array(past_starts) - new_start) <= 10):
-                new_start = np.random.randint(0, 500)
+                new_start = np.random.randint(0, 720)
             else:
                 break
         agent_inits[i,0] = new_start
-        agent_inits[i,3] = np.random.randint(10, 20)
+        agent_inits[i,3] = np.random.randint(40, 70)
         past_starts.append(new_start)
+        print("Agent", i, "initialized as:", agent_inits[i,:])
 
     return agent_inits
 
@@ -106,7 +136,6 @@ def importSimData(dataID):
         reader = csv.reader(csv_file)
         sim_data = dict(reader)
     csv_file.close()
-    
 
     sim_success = np.array(ast.literal_eval(sim_data["sim_success"]))
     collision_agents = np.array(ast.literal_eval(sim_data["collision_agents"]))
@@ -128,7 +157,7 @@ def importSimData(dataID):
 if __name__ == "__main__":
 
     sim_count = 4
-    agent_count = 3
+    agent_count = 2
     rand_init = True
     end_plots = False
 

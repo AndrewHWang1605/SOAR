@@ -33,16 +33,15 @@ L_TRACK = 1
 
 
 def get_vehicle_config():
-    
     veh_config = {}
 
     veh_config["m"] = 800 #2            # kg mass
     veh_config["Cd"] = 0.56             # drag coeff
     veh_config["SA"] = 2                # m^2 frontal SA
-    veh_config["Iz"] = 1800 #0.03       # kg/m^2 
-    veh_config["lf"] = 2.5 #0.125       # m length forward from CoM
-    veh_config["lr"] = 2.0 #0.125    # m length backward from CoM
-    veh_config["size"] = veh_config["lf"] + veh_config["lr"]
+    veh_config["Iz"] = 1800 #0.03        # kg/m^2 
+    veh_config["lf"] = 2.0 #0.125       # m length forward from CoM
+    veh_config["lr"] = 2.0 #0.125       # m length backward from CoM
+    veh_config["size"] = 4.1
     # veh_config["R"] = 0.5               # m radius of tire
 
     veh_config["max_accel"] = 10 # m/s^2 Max acceleration (assumed symmetric accel/brake)
@@ -50,9 +49,13 @@ def get_vehicle_config():
     veh_config["max_steer"] = 0.5 # rad Steering Lock
 
     # TODO: Confirm/Change
-    veh_config["c"] = 867 * 180/np.pi  # N/rad wheel stiffness  #https://www.mas.bg.ac.rs/_media/istrazivanje/fme/vol41/1/08_gvorotovic.pdf
+    veh_config["c"] = 210000  #46         # N/rad wheel stiffness 
+    # https://www.racecar-engineering.com/tech-explained/tyre-dynamics/
 
     return veh_config
+
+
+
 
 def get_vehicle_opt_constraints(veh_config, scene_config):
     veh_constraints = {}
@@ -79,7 +82,6 @@ def get_vehicle_opt_constraints(veh_config, scene_config):
 
 
 def get_scene_config(track_type=OVAL_TRACK):
-
     scene_config = {}
 
     if track_type == OVAL_TRACK:
@@ -89,25 +91,28 @@ def get_scene_config(track_type=OVAL_TRACK):
         track_config = {"track_half_width":15, "straight_length":100, "curve_radius":50, "ds":0.05}
         track = LTrack(track_config)
 
-
     scene_config["track"] = track
     scene_config["track_config"] = track_config
     scene_config["dt"] = 0.005
-    scene_config["sim_time"] = 20
+    scene_config["sim_time"] = 50
 
     return scene_config
 
 
-def get_controller_config():
 
+
+def get_controller_config():
     controller_config = {}
 
     # SINUSOIDAL
     controller_config["omega"] = 1.5
     
     # PID CONSTANT VELOCITY
-    controller_config["k_v"] = [0.5, 1e-3, 2e-1]
-    controller_config["k_theta"] = [2e-2, 2e-4, 8e0]
-    controller_config["k_delta"] = [1e1, 4e0, 7e-1]
+    # controller_config["k_v"] = [0.5, 1e-3, 2e-1]
+    # controller_config["k_theta"] = [2e-2, 2e-4, 8e0]
+    # controller_config["k_delta"] = [1e1, 4e0, 7e-1]
+    controller_config["k_v"] = [3e1, 8e-1, 4e-1]
+    controller_config["k_theta"] = [6e0, 5e-2, 1e-1]
+    controller_config["k_delta"] = [6e1, 5e-1, 1e0]
 
     return controller_config
