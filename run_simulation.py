@@ -149,7 +149,7 @@ class Simulator:
 
 
     def plot_agent_track(self):
-        plt.figure(1)
+        # plt.figure(1)
         self.scene_config["track"].plotTrack()
         for agent in self.agents:
             x_global_hist = agent.getGlobalStateHistory()
