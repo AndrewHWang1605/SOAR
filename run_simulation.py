@@ -51,9 +51,12 @@ class Simulator:
         self.agents.append(agent)
 
     def runSim(self, end_plot=False):
+        print("\nStarting simulation at dt=" + str(self.dt) + " for " + str(self.sim_time) + " seconds")
+
         retVal = True
         sim_steps = int(self.sim_time / self.dt)
         for i in range(sim_steps):
+            # print(i)
             if i%1000 == 0:
                 print("Running simulation: ", i, " timesteps passed")
 
@@ -74,9 +77,11 @@ class Simulator:
 
         self.t_hist = self.t_hist[:i+2]
 
+        if self.sim_success:
+            print("Finished simulation: ", sim_steps, " timesteps passed\n")
         if end_plot:
-            self.plot_agent_track()
             self.plot_cl_states()
+            self.plot_agent_track()
             plt.show()
         return retVal
     
@@ -155,8 +160,6 @@ class Simulator:
 
 
 if __name__ == "__main__":
-    print("Starting simulator main")
-
     """Initialize configurations"""
     veh_config = get_vehicle_config()
     scene_config = get_scene_config()
@@ -164,15 +167,15 @@ if __name__ == "__main__":
      
     sim = Simulator(scene_config)
     
-    x0_1 = np.array([240, 0, 0, 15, 0, 0, 0])
-    controller1 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=15)
+    x0_1 = np.array([720, 0, 0, 50, 0, 0, 0])
+    controller1 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=50)
     agent1 = BicycleVehicle(veh_config, scene_config, x0_1, controller1, 1)
     sim.addAgent(agent1)
 
-    x0_2 = np.array([260, 0, 0, 12, 0, 0, 0])
-    controller2 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=10)
+    x0_2 = np.array([350, 0, 0, 75, 0, 0, 0])
+    controller2 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=75)
     agent2 = BicycleVehicle(veh_config, scene_config, x0_2, controller2, 2)
-    sim.addAgent(agent2)
+    # sim.addAgent(agent2)
 
     x0_3 = np.array([500, 0, 0, 12, 0, 0, 0])
     controller3 = ConstantVelocityController(veh_config, scene_config, cont_config)

@@ -25,6 +25,7 @@ SOFTWARE.
 Implement various agents 
 """
 import numpy as np
+import copy
 
 class Agent:
     def __init__(self, veh_config, scene_config, x0, controller, ID=999):
@@ -32,26 +33,38 @@ class Agent:
         self.scene_config = scene_config
         self.x = x0
         self.controller = controller
-        self.x_hist = np.array([x0])
-        self.x_global_hist = np.array([self.scene_config["track"].CLtoGlobal(x0)])
-        self.u_hist = None
         self.ID = ID
+        self.current_timestep = 0
+
+        self.init_histories()
+
+
+    def init_histories(self):
+        sim_time = self.scene_config["sim_time"]
+        dt = self.scene_config["dt"]
+        timesteps = int(sim_time / dt)
+
+        self.x_hist = np.zeros((timesteps+1, 7))
+        self.x_hist[0,:] = self.x
+        self.x_global_hist = np.zeros((timesteps+1, 7))
+        self.x_global_hist[0,:] = np.array([self.scene_config["track"].CLtoGlobal(self.x)])
+        self.u_hist = np.zeros((timesteps, 2))
 
     # Implement dynamics and update state one timestep later
     def step(self, oppo_states):
         raise NotImplementedError("Inheritance not implemented correctly")
 
     def getLastState(self):
-        return self.x_hist[-1]
+        return self.x_hist[self.current_timestep]
     
     def getStateHistory(self):
-        return self.x_hist
+        return self.x_hist[:self.current_timestep+1]
     
     def getGlobalStateHistory(self):
-        return self.x_global_hist
+        return self.x_global_hist[:self.current_timestep+1]
     
     def getControlHistory(self):
-        return self.u_hist
+        return self.u_hist[:self.current_timestep]
 
     def ID(self):
         return self.ID
@@ -70,14 +83,15 @@ class BicycleVehicle(Agent):
     oppo_states: Nxk 
     """
     def step(self, oppo_states):
-        accel, delta_dot = self.controller.computeControl(self.x_hist[-1], oppo_states)
+        accel, delta_dot = self.controller.computeControl(self.x_hist[self.current_timestep], oppo_states)
         accel, delta_dot = self.saturate_inputs(accel, delta_dot)
         x_new = self.dynamics(accel, delta_dot)
         self.x = x_new
         self.x_global = self.scene_config["track"].CLtoGlobal(x_new)
-        self.x_hist = np.vstack((self.x_hist, self.x))
-        self.x_global_hist = np.vstack((self.x_global_hist, self.x_global))
-        self.u_hist = np.vstack((self.u_hist, np.array([accel, delta_dot]))) if self.u_hist is not None else np.array([accel, delta_dot])
+        self.x_hist[self.current_timestep+1, :] = copy.deepcopy(self.x)
+        self.x_global_hist[self.current_timestep+1, :] = copy.deepcopy(self.x_global)
+        self.u_hist[self.current_timestep, :] = np.array([accel, delta_dot])
+        self.current_timestep += 1
         return x_new
     
     # Steps forward dynamics of vehicle one discrete timestep
@@ -155,60 +169,4 @@ class BicycleVehicle(Agent):
         accel_clipped = np.clip(accel, -self.veh_config["max_accel"], self.veh_config["max_accel"])
         delta_dot_clipped = np.clip(delta_dot, -self.veh_config["max_steer_rate"], self.veh_config["max_steer_rate"])
         return accel_clipped, delta_dot_clipped
-
-if __name__ == "__main__":
-    from track import OvalTrack
-    from config import get_vehicle_config, get_scene_config, get_controller_config
-    import matplotlib.pyplot as plt
-    from controllers import SinusoidalController, ConstantVelocityController
-
-    veh_config = get_vehicle_config()
-    scene_config = get_scene_config()
-    cont_config = get_controller_config()
-     
-    dt = scene_config["dt"]
-    x0 = np.array([0, 0, 0, 12, 0, 0, 0])
-    cont = ConstantVelocityController(veh_config, scene_config, cont_config)
-    # cont = SinusoidalController(veh_config, scene_config, cont_config)
-    agent = BicycleVehicle(veh_config, scene_config, x0, cont)
-
-    t_hist = [0]
-    xg_hist = [x0]
-    for i in range(50000):
-        t = t_hist[-1] + dt
-        t_hist.append(t)
-        x_cl = agent.step(0)
-        print("CL coords", np.round(x_cl,2), "\n")
-        x_g = scene_config["track"].CLtoGlobal(x_cl)
-        # print(str(i), " Global coords", np.round(x_g,2))
-        xg_hist.append(x_g)
-        # if (np.abs(holder[2]) > 5e-2):
-        #     break
-
-    def plot_cl_states(t_hist, agent):
-        titles = ["s", "ey", "epsi", "vx", "vy", "omega", "delta", "accel", "delta_dot"]
-        plt.figure(figsize=(15,8))
-        for i in range(7):
-            plt.subplot(3,3,i+1)
-            plt.plot(t_hist, agent.x_hist[:,i])
-            plt.title(titles[i])
-
-        for i in range(7,9):
-            plt.subplot(3,3,i+1)
-            plt.plot(t_hist[:-1], agent.u_hist[:,i-7])
-            plt.title(titles[i])
-        # plt.show()
-
-        
-    plot_cl_states(t_hist, agent)
-
-    plt.figure()
-    scene_config["track"].plotTrack()
-    xg_hist = np.array(xg_hist)
-    plt.plot(xg_hist[:, 0], xg_hist[:, 1])
-    plt.show()
-    # plt.scatter(xg_hist[:, 0], xg_hist[:, 1])
-
-    # plt.show()
     
-
