@@ -112,6 +112,7 @@ class BicycleVehicle(Agent):
         # Calculate various forces 
         Fxf, Fxr = self.longitudinalForce(accel)
         Fyf, Fyr = self.lateralForce()
+        Fxf, Fxr, Fyf, Fyr = self.saturate_forces(Fxf, Fxr, Fyf, Fyr)
         Fd = self.dragForce()
 
         # Calculate x_dot components from dynamics equations
@@ -169,4 +170,17 @@ class BicycleVehicle(Agent):
         accel_clipped = np.clip(accel, -self.veh_config["max_accel"], self.veh_config["max_accel"])
         delta_dot_clipped = np.clip(delta_dot, -self.veh_config["max_steer_rate"], self.veh_config["max_steer_rate"])
         return accel_clipped, delta_dot_clipped
+
+    def saturate_forces(self, Fxf, Fxr, Fyf, Fyr):
+        F = np.array([Fxf, Fxr, Fyf, Fyr])
+        Fmax = self.veh_config["downforce_coeff"] * self.veh_config["m"] * 9.81
+        if np.linalg.norm(F) < Fmax:
+            return Fxf, Fxr, Fyf, Fyr
+
+        else:
+            print("Exceeded max force: {}g".format(np.linalg.norm(F)/Fmax))
+            return Fxf, Fxr, Fyf, Fyr
+
+            # normF = F / np.linalg.norm(F) * Fmax
+            # return normF[0], normF[1], normF[2], normF[3]
     
