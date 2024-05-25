@@ -103,6 +103,7 @@ class Track:
         ax.plot(self.track_xypsi[:,0], self.track_xypsi[:,1], linestyle='--', color='lightgrey', zorder=-1)
         ax.plot(self.track_xypsi[:,0] - self.track_config["track_half_width"]*np.sin(self.track_xypsi[:,2]), self.track_xypsi[:,1] + self.track_config["track_half_width"]*np.cos(self.track_xypsi[:,2]), linestyle='-', color='grey', zorder=-1) # Left track limit
         ax.plot(self.track_xypsi[:,0] + self.track_config["track_half_width"]*np.sin(self.track_xypsi[:,2]), self.track_xypsi[:,1] - self.track_config["track_half_width"]*np.cos(self.track_xypsi[:,2]), linestyle='-', color='grey', zorder=-1) # Right track limit
+        ax.axis('equal')
 
 class OvalTrack(Track):
     def __init__(self, track_config):

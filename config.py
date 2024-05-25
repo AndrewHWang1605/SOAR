@@ -42,6 +42,7 @@ def get_vehicle_config():
     veh_config["lf"] = 2.0 #0.125       # m length forward from CoM
     veh_config["lr"] = 2.0 #0.125       # m length backward from CoM
     veh_config["size"] = 4.1
+    veh_config["downforce_coeff"] = 5   # Effective normal force on tires
     # veh_config["R"] = 0.5               # m radius of tire
 
     veh_config["max_accel"] = 10 # m/s^2 Max acceleration (assumed symmetric accel/brake)
@@ -85,7 +86,8 @@ def get_scene_config(track_type=OVAL_TRACK):
     scene_config = {}
 
     if track_type == OVAL_TRACK:
-        track_config = {"track_half_width":10, "straight_length":100, "curve_radius":90, "ds":0.05}
+        # track_config = {"track_half_width":10, "straight_length":100, "curve_radius":90, "ds":0.05}
+        track_config = {"track_half_width":10, "straight_length":1000, "curve_radius":250, "ds":0.1}
         track = OvalTrack(track_config)
     elif track_type == L_TRACK:
         track_config = {"track_half_width":15, "straight_length":100, "curve_radius":50, "ds":0.05}
