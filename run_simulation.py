@@ -167,8 +167,8 @@ if __name__ == "__main__":
      
     sim = Simulator(scene_config)
     
-    x0_1 = np.array([720, 0, 0, 50, 0, 0, 0])
-    controller1 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=50)
+    x0_1 = np.array([0, 0, 0, 70, 0, 0, 0])
+    controller1 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=70)
     agent1 = BicycleVehicle(veh_config, scene_config, x0_1, controller1, 1)
     sim.addAgent(agent1)
 

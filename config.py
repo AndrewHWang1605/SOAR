@@ -42,6 +42,7 @@ def get_vehicle_config():
     veh_config["lf"] = 2.0 #0.125       # m length forward from CoM
     veh_config["lr"] = 2.0 #0.125       # m length backward from CoM
     veh_config["size"] = 4.1
+    veh_config["downforce_coeff"] = 5
     # veh_config["R"] = 0.5               # m radius of tire
 
     veh_config["max_accel"] = 10 # m/s^2 Max acceleration (assumed symmetric accel/brake)
@@ -85,7 +86,8 @@ def get_scene_config(track_type=OVAL_TRACK):
     scene_config = {}
 
     if track_type == OVAL_TRACK:
-        track_config = {"track_half_width":10, "straight_length":100, "curve_radius":90, "ds":0.05}
+        # track_config = {"track_half_width":10, "straight_length":100, "curve_radius":90, "ds":0.05}
+        track_config = {"track_half_width":10, "straight_length":1000, "curve_radius":250, "ds":0.1}
         track = OvalTrack(track_config)
     elif track_type == L_TRACK:
         track_config = {"track_half_width":15, "straight_length":100, "curve_radius":50, "ds":0.05}
@@ -94,7 +96,7 @@ def get_scene_config(track_type=OVAL_TRACK):
     scene_config["track"] = track
     scene_config["track_config"] = track_config
     scene_config["dt"] = 0.005
-    scene_config["sim_time"] = 50
+    scene_config["sim_time"] = 100
 
     return scene_config
 
@@ -111,8 +113,8 @@ def get_controller_config():
     # controller_config["k_v"] = [0.5, 1e-3, 2e-1]
     # controller_config["k_theta"] = [2e-2, 2e-4, 8e0]
     # controller_config["k_delta"] = [1e1, 4e0, 7e-1]
-    controller_config["k_v"] = [3e1, 8e-1, 4e-1]
-    controller_config["k_theta"] = [6e0, 5e-2, 1e-1]
-    controller_config["k_delta"] = [6e1, 5e-1, 1e0]
+    controller_config["k_v"] = [6e1, 4e0, 2e1]
+    controller_config["k_theta"] = [3e0, 3e-2, 1e1]
+    controller_config["k_delta"] = [3e1, 3e-1, 1e2]
 
     return controller_config
