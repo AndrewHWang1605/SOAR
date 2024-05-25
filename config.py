@@ -113,8 +113,8 @@ def get_controller_config():
     # controller_config["k_v"] = [0.5, 1e-3, 2e-1]
     # controller_config["k_theta"] = [2e-2, 2e-4, 8e0]
     # controller_config["k_delta"] = [1e1, 4e0, 7e-1]
-    controller_config["k_v"] = [6e1, 4e0, 2e1]
-    controller_config["k_theta"] = [3e0, 3e-2, 1e1]
-    controller_config["k_delta"] = [3e1, 3e-1, 1e2]
+    controller_config["k_v"] = [6e0, 2e-1, 4e0]
+    controller_config["k_theta"] = [1.2e0, 1e-1, 7e0]
+    controller_config["k_delta"] = [1.2e1, 1e-0, 7e1]
 
     return controller_config
