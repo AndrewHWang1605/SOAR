@@ -72,7 +72,7 @@ def get_vehicle_opt_constraints(veh_config, scene_config):
     veh_constraints["ub_s"] = 1.2*scene_config["track"].total_len # maximum longitudinal position
     veh_constraints["ub_ey"] = scene_config["track_config"]["track_half_width"] # maximum lateral error
     veh_constraints["ub_epsi"] = 10*np.pi/180 # rad maximum heading error
-    veh_constraints["ub_vx"] = 10 # m/s maximum longitudinal velocity
+    veh_constraints["ub_vx"] = 50 # m/s maximum longitudinal velocity
     veh_constraints["ub_vy"] = 2 # m/s maximum lateral velocity
     veh_constraints["ub_omega"] = 1 # rad/s maximum angular velocity
     veh_constraints["ub_delta"] = veh_config["max_steer"] # rad/s maximum angular velocity
@@ -90,7 +90,7 @@ def get_scene_config(track_type=OVAL_TRACK):
         track_config = {"track_half_width":10, "straight_length":1000, "curve_radius":250, "ds":0.1, "track_type":OVAL_TRACK}
         track = OvalTrack(track_config)
     elif track_type == L_TRACK:
-        track_config = {"track_half_width":15, "straight_length":100, "curve_radius":50, "ds":0.05, "track_type":L_TRACK}
+        track_config = {"track_half_width":15, "straight_length":1000, "curve_radius":500, "ds":0.05}
         track = LTrack(track_config)
 
     scene_config["track"] = track

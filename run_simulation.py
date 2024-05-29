@@ -28,9 +28,10 @@ Implement simulator
 import numpy as np
 from agents import BicycleVehicle
 from track import OvalTrack, LTrack
-from config import get_vehicle_config, get_scene_config, get_controller_config
+# from config import get_vehicle_config, get_scene_config, get_controller_config
+from config import *
 import matplotlib.pyplot as plt
-from controllers import SinusoidalController, ConstantVelocityController
+from controllers import SinusoidalController, ConstantVelocityController, NominalOptimalController
 
 
 class Simulator:
@@ -162,7 +163,7 @@ class Simulator:
 if __name__ == "__main__":
     """Initialize configurations"""
     veh_config = get_vehicle_config()
-    scene_config = get_scene_config()
+    scene_config = get_scene_config(track_type=L_TRACK)
     cont_config = get_controller_config()
      
     sim = Simulator(scene_config)

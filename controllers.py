@@ -32,7 +32,7 @@ class Controller:
         self.scene_config = scene_config
         self.control_config = control_config
 
-    def computeControl(self, state, oppo_states):
+    def computeControl(self, state, oppo_states, t):
         """
         Calculate next input (rear wheel commanded acceleration, derivative of steering angle) 
         """
@@ -45,7 +45,7 @@ class SinusoidalController(Controller):
     def __init__(self,  veh_config, scene_config, control_config):
         super().__init__(veh_config, scene_config, control_config)
 
-    def computeControl(self, state, oppo_states):
+    def computeControl(self, state, oppo_states, t):
         """
         Calculate next input (rear wheel commanded acceleration, derivative of steering angle) 
         """
@@ -67,7 +67,7 @@ class ConstantVelocityController(Controller):
         self.prev_delta_error = 0
         self.total_delta_error = 0
 
-    def computeControl(self, state, oppo_states):
+    def computeControl(self, state, oppo_states, t):
         """
         Calculate next input (rear wheel commanded acceleration, derivative of steering angle) 
         """
@@ -134,3 +134,22 @@ class ConstantVelocityController(Controller):
 
         return accel, steering_rate
     
+"""Exactly follow nominal trajectory (for debugging)"""
+class NominalOptimalController(Controller):
+    def __init__(self,  veh_config, scene_config, control_config, raceline_file):
+        super().__init__(veh_config, scene_config, control_config)
+        unpack_file = np.load(raceline_file)
+        self.s_hist = unpack_file["s"]
+        self.accel_hist = unpack_file["u_a"]
+        self.ddelta_hist = unpack_file["u_s"]
+
+    def computeControl(self, state, oppo_states, t):
+        """
+        Calculate next input (rear wheel commanded acceleration, derivative of steering angle) 
+        """
+        s, ey, epsi, vx_cl, vy_cl, w, delta = state
+        total_len = self.scene_config["track"].total_len
+        s = np.mod(np.mod(s, total_len) + total_len, total_len)
+        nearest_s_ind = np.where(s >= self.s_hist)[0][-1]
+        print(nearest_s_ind)
+        return self.accel_hist[nearest_s_ind], self.ddelta_hist[nearest_s_ind]
