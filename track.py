@@ -60,6 +60,9 @@ class Track:
         nearest_s_ind = np.argmin(np.abs(self.s - s%self.total_len))
         track_x, track_y, track_psi = self.track_xypsi[nearest_s_ind]
         return track_x, track_y, track_psi
+    
+    def getTrackLength(self):
+        return self.total_len
 
     def generateTrackFromCurvature(self, segment_curvature, segment_change, ds):
         """

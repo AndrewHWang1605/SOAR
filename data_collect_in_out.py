@@ -93,12 +93,12 @@ def agent_rand_init(agent_count):
     for i in range(agent_count):
         new_start = np.random.randint(0, 3000)
         while len(past_starts) > 0:
-            if np.any(np.abs(np.array(past_starts) - new_start) <= 300):
+            if np.any(np.abs(np.array(past_starts) - new_start) <= 500):
                 new_start = np.random.randint(0, 3000)
             else:
                 break
         agent_inits[i,0] = new_start
-        agent_inits[i,3] = np.random.randint(30, 80)
+        agent_inits[i,3] = np.random.randint(40, 70)
         past_starts.append(new_start)
         print("Agent", i, "initialized as:", agent_inits[i,:])
 
@@ -120,7 +120,7 @@ def exportSimDataToCSV(sim, dataID):
 
 
 """Imports a sim's data from a csv file"""
-def importSimData(dataID):
+def importSimDataFromCSV(dataID):
     
     # Decrease the maxInt value by factor 10 if OverflowError for dict import
     maxInt = sys.maxsize
@@ -143,10 +143,11 @@ def importSimData(dataID):
     agent_count = np.array(ast.literal_eval(sim_data["agent_count"]))
     states, controls = [], []
     for i in range(agent_count):
-        states.append(np.array(ast.literal_eval(sim_data["x" + str(i)])))
-        controls.append(np.array(ast.literal_eval(sim_data["u" + str(i)])))
+        states.append(np.array(ast.literal_eval(sim_data["x" + str(i+1)])))
+        controls.append(np.array(ast.literal_eval(sim_data["u" + str(i+1)])))
+    track_config = dict(ast.literal_eval(sim_data["track_config"]))
 
-    return sim_success, collision_agents, agent_count, states, controls, times
+    return sim_success, collision_agents, agent_count, states, controls, times, track_config
 
 
 

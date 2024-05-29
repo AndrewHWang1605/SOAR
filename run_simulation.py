@@ -120,8 +120,9 @@ class Simulator:
 
         sim_data = {}
 
+        sim_data["track_config"] = self.scene_config["track_config"]
         sim_data["sim_success"] = self.sim_success
-        sim_data["collision_agents"] = self.collision_agents
+        sim_data["collision_agents"] = np.array2string(np.array(self.collision_agents), separator=',', suppress_small=True)
         sim_data["t"] = np.array2string(self.t_hist, separator=',', suppress_small=True)
         sim_data["agent_count"] = len(self.agents)
         for agent in self.agents:
@@ -166,7 +167,7 @@ if __name__ == "__main__":
      
     sim = Simulator(scene_config)
     
-    x0_1 = np.array([1000, 0, 0, 50, 0, 0, 0])
+    x0_1 = np.array([0, 0, 0, 50, 0, 0, 0])
     controller1 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=50)
     agent1 = BicycleVehicle(veh_config, scene_config, x0_1, controller1, 1)
     sim.addAgent(agent1)
