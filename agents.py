@@ -41,8 +41,8 @@ class Agent:
 
     def init_histories(self):
         sim_time = self.scene_config["sim_time"]
-        dt = self.scene_config["dt"]
-        timesteps = int(sim_time / dt)
+        self.dt = self.scene_config["dt"]
+        timesteps = int(sim_time / self.dt)
 
         self.x_hist = np.zeros((timesteps+1, 7))
         self.x_hist[0,:] = self.x
@@ -83,7 +83,7 @@ class BicycleVehicle(Agent):
     oppo_states: Nxk 
     """
     def step(self, oppo_states):
-        accel, delta_dot = self.controller.computeControl(self.x_hist[self.current_timestep], oppo_states)
+        accel, delta_dot = self.controller.computeControl(self.x_hist[self.current_timestep], oppo_states, self.current_timestep*self.dt)
         accel, delta_dot = self.saturate_inputs(accel, delta_dot)
         x_new = self.dynamics(accel, delta_dot)
         self.x = x_new
