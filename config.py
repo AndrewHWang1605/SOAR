@@ -42,7 +42,7 @@ def get_vehicle_config():
     veh_config["lf"] = 2.0 #0.125       # m length forward from CoM
     veh_config["lr"] = 2.0 #0.125       # m length backward from CoM
     veh_config["size"] = 4.1
-    veh_config["downforce_coeff"] = 5   # Effective normal force on tires
+    veh_config["downforce_coeff"] = 5
     # veh_config["R"] = 0.5               # m radius of tire
 
     veh_config["max_accel"] = 10 # m/s^2 Max acceleration (assumed symmetric accel/brake)
@@ -113,8 +113,8 @@ def get_controller_config():
     # controller_config["k_v"] = [0.5, 1e-3, 2e-1]
     # controller_config["k_theta"] = [2e-2, 2e-4, 8e0]
     # controller_config["k_delta"] = [1e1, 4e0, 7e-1]
-    controller_config["k_v"] = [3e1, 8e-1, 4e-1]
-    controller_config["k_theta"] = [6e0, 5e-2, 1e-1]
-    controller_config["k_delta"] = [6e1, 5e-1, 1e0]
+    controller_config["k_v"] = [6e0, 2e-1, 4e0]
+    controller_config["k_theta"] = [1.2e0, 1e-1, 7e0]
+    controller_config["k_delta"] = [1.2e1, 1e-0, 7e1]
 
     return controller_config

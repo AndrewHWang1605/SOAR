@@ -150,7 +150,6 @@ class Simulator:
 
 
     def plot_agent_track(self):
-        # plt.figure(1)
         self.scene_config["track"].plotTrack()
         for agent in self.agents:
             x_global_hist = agent.getGlobalStateHistory()
@@ -168,26 +167,20 @@ if __name__ == "__main__":
      
     sim = Simulator(scene_config)
     
-    # x0_1 = np.array([720, 0, 0, 50, 0, 0, 0])
-    # # controller1 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=50)
-    # controller1 = SinusoidalController(veh_config, scene_config, cont_config)
-    # agent1 = BicycleVehicle(veh_config, scene_config, x0_1, controller1, 1)
-    # sim.addAgent(agent1)
+    x0_1 = np.array([1000, 0, 0, 50, 0, 0, 0])
+    controller1 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=50)
+    agent1 = BicycleVehicle(veh_config, scene_config, x0_1, controller1, 1)
+    sim.addAgent(agent1)
 
-    # x0_2 = np.array([350, 0, 0, 75, 0, 0, 0])
-    # controller2 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=75)
-    # agent2 = BicycleVehicle(veh_config, scene_config, x0_2, controller2, 2)
-    # # sim.addAgent(agent2)
+    x0_2 = np.array([350, 0, 0, 75, 0, 0, 0])
+    controller2 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=75)
+    agent2 = BicycleVehicle(veh_config, scene_config, x0_2, controller2, 2)
+    # sim.addAgent(agent2)
 
-    # x0_3 = np.array([500, 0, 0, 12, 0, 0, 0])
-    # controller3 = ConstantVelocityController(veh_config, scene_config, cont_config)
-    # agent3 = BicycleVehicle(veh_config, scene_config, x0_3, controller3, 3)
-    # # sim.addAgent(agent3)
-
-    x0_nom = np.array([0, 0, 0, 50, 0, 0, 0])
-    controller_nom = NominalOptimalController(veh_config, scene_config, cont_config, "./race_lines/Ltrack_50_raceline.npz")
-    agent_nom = BicycleVehicle(veh_config, scene_config, x0_nom, controller_nom, 4)
-    sim.addAgent(agent_nom)
+    x0_3 = np.array([500, 0, 0, 12, 0, 0, 0])
+    controller3 = ConstantVelocityController(veh_config, scene_config, cont_config)
+    agent3 = BicycleVehicle(veh_config, scene_config, x0_3, controller3, 3)
+    # sim.addAgent(agent3)
     
     sim.runSim(True)
     

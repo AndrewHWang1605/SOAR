@@ -91,14 +91,14 @@ def agent_rand_init(agent_count):
     past_starts = []
 
     for i in range(agent_count):
-        new_start = np.random.randint(0, 720)
+        new_start = np.random.randint(0, 3000)
         while len(past_starts) > 0:
-            if np.any(np.abs(np.array(past_starts) - new_start) <= 10):
-                new_start = np.random.randint(0, 720)
+            if np.any(np.abs(np.array(past_starts) - new_start) <= 300):
+                new_start = np.random.randint(0, 3000)
             else:
                 break
         agent_inits[i,0] = new_start
-        agent_inits[i,3] = np.random.randint(40, 70)
+        agent_inits[i,3] = np.random.randint(30, 80)
         past_starts.append(new_start)
         print("Agent", i, "initialized as:", agent_inits[i,:])
 
@@ -157,7 +157,7 @@ def importSimData(dataID):
 if __name__ == "__main__":
 
     sim_count = 4
-    agent_count = 2
+    agent_count = 3
     rand_init = True
     end_plots = False
 
