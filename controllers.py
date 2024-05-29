@@ -134,7 +134,7 @@ class ConstantVelocityController(Controller):
 
         return accel, steering_rate
     
-"""Exactly follow nominal trajectory (for debugging)"""
+"""Try to exactly track nominal trajectory (for debugging)"""
 class NominalOptimalController(Controller):
     def __init__(self,  veh_config, scene_config, control_config, raceline_file):
         super().__init__(veh_config, scene_config, control_config)
