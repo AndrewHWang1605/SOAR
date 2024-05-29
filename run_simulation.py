@@ -81,8 +81,8 @@ class Simulator:
         if self.sim_success:
             print("Finished simulation: ", sim_steps, " timesteps passed\n")
         if end_plot:
-            self.plot_cl_states()
-            self.plot_agent_track()
+            self.plotCLStates()
+            self.plotAgentTrack()
             plt.show()
         return retVal
     
@@ -133,7 +133,7 @@ class Simulator:
         return sim_data
 
 
-    def plot_cl_states(self):
+    def plotCLStates(self):
         titles = ["s", "ey", "epsi", "vx", "vy", "omega", "delta", "accel", "delta_dot"]
         plt.figure(0, figsize=(15,8))
         for agent in self.agents:
@@ -150,7 +150,7 @@ class Simulator:
         plt.legend([str(agent.ID) for agent in self.agents])
 
 
-    def plot_agent_track(self):
+    def plotAgentTrack(self):
         self.scene_config["track"].plotTrack()
         for agent in self.agents:
             x_global_hist = agent.getGlobalStateHistory()

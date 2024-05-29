@@ -47,7 +47,7 @@ def generateData(sim_count, agent_count, rand_init=False, end_plots=False):
     print("\nRunning simulations to generate data")
     for i in range(sim_count):
         if rand_init:
-            agent_inits = agent_rand_init(agent_count)
+            agent_inits = agentRandomInit(agent_count)
         else:
             agent_inits = agent_inits[:agent_count, :]
         
@@ -85,22 +85,23 @@ def runSimulation(agent_inits, end_plots=False):
 
 
 """Generates random agent initial states (only s and vx for now in CL frame)"""
-def agent_rand_init(agent_count):
+def agentRandomInit(agent_count):
 
     agent_inits = np.zeros((agent_count, 7))
     past_starts = []
 
+    new_start_ref = np.random.randint(0,3000)
     for i in range(agent_count):
-        new_start = np.random.randint(0, 3000)
+        new_start = np.random.randint(new_start_ref, new_start_ref+400)
         while len(past_starts) > 0:
-            if np.any(np.abs(np.array(past_starts) - new_start) <= 500):
-                new_start = np.random.randint(0, 3000)
+            if np.any(np.abs(np.array(past_starts) - new_start) <= 100):
+                new_start = np.random.randint(new_start_ref, new_start_ref+400)
             else:
                 break
         agent_inits[i,0] = new_start
-        agent_inits[i,3] = np.random.randint(40, 70)
+        agent_inits[i,3] = np.random.randint(60, 80)
         past_starts.append(new_start)
-        print("Agent", i, "initialized as:", agent_inits[i,:])
+        print("Agent", i, "initialized as:", agent_inits[i,0], agent_inits[i,3])
 
     return agent_inits
 
@@ -157,8 +158,8 @@ def importSimDataFromCSV(dataID):
 
 if __name__ == "__main__":
 
-    sim_count = 4
-    agent_count = 3
+    sim_count = 20
+    agent_count = 2
     rand_init = True
     end_plots = False
 
