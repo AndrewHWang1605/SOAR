@@ -5,8 +5,6 @@ from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, Matern
 from sklearn.utils import shuffle
 
-
-from GPStructure import GaussianProcess, radial_basis, matern
 from track import OvalTrack, LTrack
 from data_collect_in_out import importSimDataFromCSV
 from config import get_GP_config
@@ -122,7 +120,12 @@ class GaussianProcessRegression():
                 
                 s1 = np.mod(np.mod(s1, track_length) + track_length, track_length)
                 s2 = np.mod(np.mod(s2, track_length) + track_length, track_length)
-                ds = s1 - s2
+                ds = s1 - s2 
+                if s1 > track_length - self.ds_bound/2 and s2 < self.ds_bound/2:
+                    ds -= track_length
+                elif s2 > track_length - self.ds_bound/2 and s1 < self.ds_bound/2:
+                    ds += track_length
+
                 if abs(ds) <= self.ds_bound:
                     print(total_counter, np.round(ds,2))
                     dey = ey1 - ey2
