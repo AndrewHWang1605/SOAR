@@ -126,7 +126,7 @@ def get_GP_config():
     GP_config = {}
 
     GP_config["sample_count"] = 2000
-    GP_config["test_count"] = 1
-    GP_config["ds_bound"] = 250
+    GP_config["test_count"] = 100
+    GP_config["ds_bound"] = 150
 
     return GP_config
