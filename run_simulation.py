@@ -171,7 +171,7 @@ if __name__ == "__main__":
     x0_1 = np.array([0, 0, 0, 50, 0, 0, 0])
     controller1 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=50)
     agent1 = BicycleVehicle(veh_config, scene_config, x0_1, controller1, 1)
-    # sim.addAgent(agent1)
+    sim.addAgent(agent1)
 
     x0_2 = np.array([350, 0, 0, 75, 0, 0, 0])
     controller2 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=75)
@@ -182,7 +182,7 @@ if __name__ == "__main__":
     controller3 = ConstantVelocityController(veh_config, scene_config, cont_config)
     controller3 = NominalOptimalController(veh_config, scene_config, cont_config, "race_lines/oval_raceline.npz")
     agent3 = BicycleVehicle(veh_config, scene_config, x0_3, controller3, 3)
-    sim.addAgent(agent3)
+    # sim.addAgent(agent3)
     
     sim.runSim(True)
     

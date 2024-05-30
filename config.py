@@ -119,8 +119,18 @@ def get_controller_config():
 
     # MPC 
     controller_config["T"] = 5
-    controller_config["N"] = 10
-    controller_config["Q"] = np.eye(7)
+    controller_config["freq"] = 30
+    controller_config["opt_k_s"] = 1
+    controller_config["opt_k_ey"] = 1
+    controller_config["opt_k_epsi"] = 1
+    controller_config["opt_k_vx"] = 1
+    controller_config["opt_k_vy"] = 1
+    controller_config["opt_k_omega"] = 1
+    controller_config["opt_k_delta"] = 0.1
+    controller_config["opt_k_ua"] = 1
+    controller_config["opt_k_us"] = 1
+
+    controller_config["states_lb"] = np.array
 
     return controller_config
 
