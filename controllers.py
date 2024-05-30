@@ -161,7 +161,7 @@ class MPCController(Controller):
         super().__init__(veh_config, scene_config, control_config)
         self.race_line = np.load(raceline_file)
         self.race_line_mat = self.constructRaceLineMat(self.race_line)
-        self.mpc_solver = self.initSolver()
+        self.mpc_solver, self.solver_args = self.initSolver()
         
     def constructRaceLineMat(self, raceline):
         """
@@ -293,8 +293,11 @@ class MPCController(Controller):
         ubx[STATE_DIM*(N+1) + 1 : : INPUT_DIM] = self.control_config["input_ub"]["ddelta"]
 
         # Initialize constraints (g) bounds
-        lbg = []
-        ubg = []
+        MAX_NUM_OPPONENTS = 5
+        # lbg = ca.DM.zeros((STATE_DIM*(N+1) + 2*MAX_NUM_OPPONENTS, 1)) # N+1 dynamics constraints, up to 5 opponents (only consider s and ey)
+        # ubg = ca.DM.zeros((STATE_DIM*(N+1) + 2*MAX_NUM_OPPONENTS, 1))
+        lbg = ca.DM.zeros((STATE_DIM*(N+1), 1)) # N+1 dynamics constraints only, no opponents
+        ubg = ca.DM.zeros((STATE_DIM*(N+1), 1))
 
         # Define cost function
         final_st = X[:,-1]
@@ -309,8 +312,6 @@ class MPCController(Controller):
                        (con - P[-INPUT_DIM:,k]).T @ R @ (con - P[-INPUT_DIM:,k])
             # Define dynamics equality constraint
             g = ca.vertcat(g, st_next - f(st, con, ref))
-            lbg.append([0]*STATE_DIM)
-            ubg.append([0]*STATE_DIM)
         
         OPT_variables = ca.vertcat(
             X.reshape((-1,1)),
@@ -333,10 +334,17 @@ class MPCController(Controller):
             },
             'print_time': 0
         }
+        solver_args = {
+            'lbg': lbg,  # constraints lower bound
+            'ubg': ubg,  # constraints upper bound
+            'lbx': lbx,  # states/input lower bound
+            'ubx': ubx   # states/input upper bound
+        }
         solver = ca.nlpsol('solver', 'ipopt', nlp_prob, opts)
-        
-        
 
+        return solver, solver_args
+        
+        
     # Steps forward dynamics of vehicle one discrete timestep for CasADi symbolic vars
     def casadi_dynamics(self, x, accel, delta_dot, kappa):
         # Expands state variable and precalculates sin/cos
@@ -411,9 +419,35 @@ class MPCController(Controller):
         freq = self.control_config["freq"]
         dt = 1.0/freq                    
         delta_t = np.arange(0, T+dt, dt)
-        print(delta_t)
+        N = delta_t.shape[0]-1
         t_hist, ref_traj = self.getRefTrajectory(state[0], delta_t) # s, ey, epsi, vx, vy, omega, delta, accel, ddelta
         curvature = track.getCurvature(ref_traj[0,:])
+
+        # Initialize params (reference trajectory, curvature)
+        # TODO: Add opponent prediction states here
+        P_mat = np.vstack((ref_traj[:STATE_DIM], curvature, ref_traj[STATE_DIM:]))
+        self.solver_args['p'] = ca.DM(P_mat)
+
+        # TODO: Initialize warm start 
+        # TODO: Warmstart with reference trajectory
+        X0 = ca.repmat(state, 1, N+1)
+        u0 = ca.DM.zeros((INPUT_DIM, N))
+        self.solver_args['x0'] = ca.vertcat(
+            ca.reshape(X0, STATE_DIM*(N+1), 1),
+            ca.reshape(u0, INPUT_DIM*N, 1)
+        )
+
+        sol = self.mpc_solver(
+            x0=self.solver_args['x0'],
+            lbx=self.solver_args['lbx'],
+            ubx=self.solver_args['ubx'],
+            lbg=self.solver_args['lbg'],
+            ubg=self.solver_args['ubg'],
+            p=self.solver_args['p']
+        )
+
+        print(ca.reshape(sol['x'][: STATE_DIM * (N+1)], STATE_DIM, N+1))
+        print(ca.reshape(sol['x'][STATE_DIM * (N + 1):], INPUT_DIM, N))
 
         
         
