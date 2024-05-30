@@ -163,7 +163,7 @@ class Simulator:
 if __name__ == "__main__":
     """Initialize configurations"""
     veh_config = get_vehicle_config()
-    scene_config = get_scene_config(track_type=L_TRACK)
+    scene_config = get_scene_config(track_type=OVAL_TRACK)
     cont_config = get_controller_config()
      
     sim = Simulator(scene_config)
@@ -171,17 +171,18 @@ if __name__ == "__main__":
     x0_1 = np.array([0, 0, 0, 50, 0, 0, 0])
     controller1 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=50)
     agent1 = BicycleVehicle(veh_config, scene_config, x0_1, controller1, 1)
-    sim.addAgent(agent1)
+    # sim.addAgent(agent1)
 
     x0_2 = np.array([350, 0, 0, 75, 0, 0, 0])
     controller2 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=75)
     agent2 = BicycleVehicle(veh_config, scene_config, x0_2, controller2, 2)
     # sim.addAgent(agent2)
 
-    x0_3 = np.array([500, 0, 0, 12, 0, 0, 0])
+    x0_3 = np.array([300, -10, 0, 80, 0, 0, 0])
     controller3 = ConstantVelocityController(veh_config, scene_config, cont_config)
+    controller3 = NominalOptimalController(veh_config, scene_config, cont_config, "race_lines/oval_raceline.npz")
     agent3 = BicycleVehicle(veh_config, scene_config, x0_3, controller3, 3)
-    # sim.addAgent(agent3)
+    sim.addAgent(agent3)
     
     sim.runSim(True)
     
