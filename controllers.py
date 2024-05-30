@@ -155,14 +155,14 @@ class NominalOptimalController(Controller):
         print(nearest_s_ind)
         return self.accel_hist[nearest_s_ind], self.ddelta_hist[nearest_s_ind]
 
-"""Try to exactly track nominal trajectory (for debugging)"""
+"""MPC to track reference trajectory (based on https://github.com/MMehrez/MPC-and-MHE-implementation-in-MATLAB-using-Casadi/blob/master/workshop_github/Python_Implementation/mpc_code.py)"""
 class MPCController(Controller):
     def __init__(self,  veh_config, scene_config, control_config, raceline_file):
         super().__init__(veh_config, scene_config, control_config)
         self.race_line = np.load(raceline_file)
-        self.race_line_mat = self.construct_race_line_mat(self.race_line)
+        self.race_line_mat = self.constructRaceLineMat(self.race_line)
         
-    def construct_race_line_mat(self, raceline):
+    def constructRaceLineMat(self, raceline):
         """
         Unpack raceline dictionary object into matrix 
         Returns 10xN (0:time, 1-7: 7 curvilinear states, 8-9: 2 inputs)
@@ -182,10 +182,128 @@ class MPCController(Controller):
         return race_line_mat
 
 
-    def init_solver(self):
-        pass
+    def initSolver(self):
+        T = self.control_config["T"]        # Prediction horizon
+        freq = self.control_config["freq"]  # Optimization Frequency
+        N = int(T*freq)                     # Number of discretization steps
 
-    def get_reference_trajectory(self, s, delta_t):
+        # Construct state cost matrix
+        k_s = self.control_config["opt_k_s"]
+        k_ey = self.control_config["opt_k_ey"]
+        k_epsi = self.control_config["opt_k_epsi"]
+        k_vx = self.control_config["opt_k_vx"]
+        k_vy = self.control_config["opt_k_vy"]
+        k_omega = self.control_config["opt_k_omega"]
+        k_delta = self.control_config["opt_k_delta"]
+        Q = ca.diagcat(k_s, k_ey, k_epsi, k_vx, k_vy, k_omega, k_delta)
+
+        # Construct input cost matrix
+        k_ua = self.control_config["opt_k_ua"]
+        k_us = self.control_config["opt_k_us"]
+        R = ca.diagcat(k_ua, k_us)
+
+        # State symbolic variables
+        s_ca = ca.SX.sym('s')
+        ey_ca = ca.SX.sym('ey')
+        epsi_ca = ca.SX.sym('epsi')
+        vx_ca = ca.SX.sym('vx')
+        vy_ca = ca.SX.sym('vy')
+        omega_ca = ca.SX.sym('omega')
+        delta_ca = ca.SX.sym('delta')
+        states = ca.vertcat(
+            s_ca,
+            ey_ca,
+            epsi_ca,
+            vx_ca,
+            vy_ca,
+            omega_ca,
+            delta_ca
+        )
+
+        # Input symbolic variables
+        accel_ca = ca.SX.sym('accel')
+        ddelta_ca = ca.SX.sym('ddelta')
+        controls = ca.vertcat(
+            accel_ca,
+            ddelta_ca
+        )
+
+        # Reference symbolic variables
+        s_ref_ca = ca.SX.sym('s_ref')
+        ey_ref_ca = ca.SX.sym('ey_ref')
+        epsi_ref_ca = ca.SX.sym('epsi_ref')
+        vx_ref_ca = ca.SX.sym('vx_ref')
+        vy_ref_ca = ca.SX.sym('vy_ref')
+        omega_ref_ca = ca.SX.sym('omega_ref')
+        delta_ref_ca = ca.SX.sym('delta_ref')
+        kappa_ref_ca = ca.SX.sym('kappa_ref')
+        accel_ref_ca = ca.SX.sym('accel_ref')
+        ddelta_ref_ca = ca.SX.sym('ddelta_ref')
+        reference = ca.vertcat(
+            s_ref_ca,
+            ey_ref_ca,
+            epsi_ref_ca,
+            vx_ref_ca,
+            vy_ref_ca,
+            omega_ref_ca,
+            delta_ref_ca,
+            kappa_ref_ca,
+            accel_ref_ca,
+            ddelta_ref_ca
+        )
+
+        # Matrix containing all states over all timesteps + 1 [7 x N+1]
+        X = ca.SX.sym('X', STATE_DIM, N+1)
+
+        # Matrix containing all control inputs over all timesteps [2 x N]
+        U = ca.SX.sym('U', INPUT_DIM, N)
+
+        # Matrix containing initial state, reference states/inputs, and curvature over all timesteps [10 x N]
+        # First column is initial state/curvature with zeros for inputs, rest of columns are reference state+curvature+input
+        # Column = [s, ey, epsi, vx, vy, omega, delta, kappa, accel, ddelta]
+        P_ref = ca.SX.sym('X', STATE_DIM+INPUT_DIM+1, N+1)
+
+        # Define dynamics constraint
+        next_state = self.casadi_dynamics(state, accel_ca, ddelta_ca, kappa_ref_ca)
+        f = ca.Function('f', [states, controls, reference], next_state)
+        
+
+    # Steps forward dynamics of vehicle one discrete timestep for CasADi symbolic vars
+    def casadi_dynamics(self, x, accel, delta_dot, kappa):
+        # Expands state variable and precalculates sin/cos
+        s, ey, epsi, vx, vy, omega, delta = [x[i] for i in range(self.x.shape[0])]
+        sin_epsi, cos_epsi = ca.sin(epsi), ca.cos(epsi)
+        sin_delta, cos_delta = ca.sin(delta), ca.cos(delta)
+
+        # Expand scene and vehicle config variables
+        dt = self.scene_config["dt"]
+        m = self.veh_config["m"]
+        Iz = self.veh_config["Iz"]
+        lf = self.veh_config["lf"]
+        lr = self.veh_config["lr"]
+
+        # Calculate various forces 
+        Fxf, Fxr = self.longitudinalForce(accel)
+        Fyf, Fyr = self.lateralForce(x)
+        # Fxf, Fxr, Fyf, Fyr = self.saturate_forces(Fxf, Fxr, Fyf, Fyr)
+        Fd = self.dragForce(x)
+
+        # Calculate x_dot components from dynamics equations
+        s_dot = (vx*cos_epsi - vy*sin_epsi) / (1 - ey * kappa)
+        ey_dot = vx*sin_epsi + vy*cos_epsi
+        epsi_dot = omega - kappa*s_dot
+        vx_dot = 1/m * (Fxr - Fd - Fyf*sin_delta + m*vy*omega)
+        vy_dot = 1/m * (Fyr + Fyf*cos_delta - m*vx*omega)
+        omega_dot = 1/Iz * (lf*Fyf*cos_delta - lr*Fyr)
+
+        # Propogate state variable forwards one timestep with Euler step
+        x_dot = ca.SX([s_dot, ey_dot, epsi_dot, vx_dot, vy_dot, omega_dot, delta_dot])
+        # print("xdot", np.round(x_dot, 4))
+        x_new = x + x_dot*dt
+        # x_new[6] = np.clip(x_new[6], -self.veh_config["max_steer"], self.veh_config["max_steer"])
+        return x_new
+
+    def getRefTrajectory(self, s0, delta_t):
         """
         s: Current longitudinal position
         t: Monotonically increasing vector of time intervals (starting from 0) that we 
@@ -195,22 +313,33 @@ class MPCController(Controller):
 
         # Find closest point on reference trajectory and corresponding time
         total_len = self.scene_config["track"].total_len
-        s = np.mod(np.mod(s, total_len) + total_len, total_len)
+        s0 = np.mod(np.mod(s0, total_len) + total_len, total_len)
         s_hist = self.race_line_mat[1,:]
-        nearest_s_ind = np.where(s >= s_hist)[0][-1]
-        closest_t = self.race_line_mat[0, nearest_s_ind]
+        closest_t = np.interp(s0, s_hist, self.race_line_mat[0,:])
 
+        # Shift delta t based on closest current time
         t_hist = closest_t + delta_t
 
         for i in range(ref_traj.shape[0]):
             ref_traj[i,:] = np.interp(t_hist, self.race_line_mat[0,:], self.race_line_mat[i+1,:])
 
-        return ref_traj
+        return t_hist, ref_traj
 
     def computeControl(self, state, oppo_states, t):
         """
         Calculate next input (rear wheel commanded acceleration, derivative of steering angle) 
         """
+        track = self.scene_config["track"]
+
+        T = self.control_config["T"]    # Prediction horizon
+        N = self.control_config["N"]    # Number of discretization steps
+        dt = T/N                    
+        delta_t = np.linspace(0, T, N+1)
+        t_hist, ref_traj = self.getRefTrajectory(state[0], delta_t) # s, ey, epsi, vx, vy, omega, delta, accel, ddelta
+        curvature = track.getCurvature(ref_traj[0,:])
+
+        
+        
         # s, ey, epsi, vx_cl, vy_cl, w, delta = state
         # total_len = self.scene_config["track"].total_len
         # s = np.mod(np.mod(s, total_len) + total_len, total_len)
@@ -224,4 +353,5 @@ veh_config = get_vehicle_config()
 scene_config = get_scene_config(track_type=OVAL_TRACK)
 cont_config = get_controller_config()
 controller = MPCController(veh_config, scene_config, cont_config, "race_lines/oval_raceline.npz")
-controller.get_reference_trajectory(3.5, np.array([0,0.25,0.5]))
+controller.getRefTrajectory(3.5, np.linspace(0,0,20))
+controller.computeControl(np.array([900,0,0,0,0,0,0]), [], 0)

@@ -131,41 +131,6 @@ class BicycleVehicle(Agent):
         x_new[6] = np.clip(x_new[6], -self.veh_config["max_steer"], self.veh_config["max_steer"])
         return x_new
 
-    # Steps forward dynamics of vehicle one discrete timestep for CasADi symbolic vars
-    def casadi_dynamics(self, x, accel, delta_dot, kappa):
-        # Expands state variable and precalculates sin/cos
-        s, ey, epsi, vx, vy, omega, delta = [x[i] for i in range(self.x.shape[0])]
-        sin_epsi, cos_epsi = ca.sin(epsi), ca.cos(epsi)
-        sin_delta, cos_delta = ca.sin(delta), ca.cos(delta)
-
-        # Expand scene and vehicle config variables
-        dt = self.scene_config["dt"]
-        m = self.veh_config["m"]
-        Iz = self.veh_config["Iz"]
-        lf = self.veh_config["lf"]
-        lr = self.veh_config["lr"]
-
-        # Calculate various forces 
-        Fxf, Fxr = self.longitudinalForce(accel)
-        Fyf, Fyr = self.lateralForce(x)
-        # Fxf, Fxr, Fyf, Fyr = self.saturate_forces(Fxf, Fxr, Fyf, Fyr)
-        Fd = self.dragForce(x)
-
-        # Calculate x_dot components from dynamics equations
-        s_dot = (vx*cos_epsi - vy*sin_epsi) / (1 - ey * kappa)
-        ey_dot = vx*sin_epsi + vy*cos_epsi
-        epsi_dot = omega - kappa*s_dot
-        vx_dot = 1/m * (Fxr - Fd - Fyf*sin_delta + m*vy*omega)
-        vy_dot = 1/m * (Fyr + Fyf*cos_delta - m*vx*omega)
-        omega_dot = 1/Iz * (lf*Fyf*cos_delta - lr*Fyr)
-
-        # Propogate state variable forwards one timestep with Euler step
-        x_dot = ca.SX([s_dot, ey_dot, epsi_dot, vx_dot, vy_dot, omega_dot, delta_dot])
-        # print("xdot", np.round(x_dot, 4))
-        x_new = x + x_dot*dt
-        # x_new[6] = np.clip(x_new[6], -self.veh_config["max_steer"], self.veh_config["max_steer"])
-        return x_new
-
     # Rear wheel drive, all acceleration goes onto rear wheels
     def longitudinalForce(self, accel):
         m = self.veh_config["m"]
