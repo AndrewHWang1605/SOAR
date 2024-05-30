@@ -161,6 +161,7 @@ class MPCController(Controller):
         super().__init__(veh_config, scene_config, control_config)
         self.race_line = np.load(raceline_file)
         self.race_line_mat = self.constructRaceLineMat(self.race_line)
+        self.mpc_solver = self.initSolver()
         
     def constructRaceLineMat(self, raceline):
         """
@@ -261,17 +262,85 @@ class MPCController(Controller):
         # Matrix containing initial state, reference states/inputs, and curvature over all timesteps [10 x N]
         # First column is initial state/curvature with zeros for inputs, rest of columns are reference state+curvature+input
         # Column = [s, ey, epsi, vx, vy, omega, delta, kappa, accel, ddelta]
-        P_ref = ca.SX.sym('X', STATE_DIM+INPUT_DIM+1, N+1)
+        P = ca.SX.sym('X', STATE_DIM+INPUT_DIM+1, N+1)
 
-        # Define dynamics constraint
-        next_state = self.casadi_dynamics(state, accel_ca, ddelta_ca, kappa_ref_ca)
-        f = ca.Function('f', [states, controls, reference], next_state)
+        # Define dynamics function
+        next_state = self.casadi_dynamics(states, accel_ca, ddelta_ca, kappa_ref_ca)
+        f = ca.Function('f', [states, controls, reference], [next_state]) # Maps states, controls, reference (for curvature) to next state
+
+        # Define state constraints
+        lbx = ca.DM.zeros((STATE_DIM*(N+1) + INPUT_DIM*N, 1))
+        ubx = ca.DM.zeros((STATE_DIM*(N+1) + INPUT_DIM*N, 1))
+        lbx[0 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_lb"]["s"]
+        lbx[1 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_lb"]["ey"]
+        lbx[2 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_lb"]["epsi"]
+        lbx[3 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_lb"]["vx"]
+        lbx[4 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_lb"]["vy"]
+        lbx[5 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_lb"]["omega"]
+        lbx[6 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_lb"]["delta"]
+        ubx[0 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_ub"]["s"]
+        ubx[1 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_ub"]["ey"]
+        ubx[2 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_ub"]["epsi"]
+        ubx[3 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_ub"]["vx"]
+        ubx[4 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_ub"]["vy"]
+        ubx[5 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_ub"]["omega"]
+        ubx[6 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_ub"]["delta"]
+
+        # Define input constraints
+        lbx[STATE_DIM*(N+1) : : INPUT_DIM] = self.control_config["input_lb"]["accel"]
+        lbx[STATE_DIM*(N+1) + 1 : : INPUT_DIM] = self.control_config["input_lb"]["ddelta"]
+        ubx[STATE_DIM*(N+1) : : INPUT_DIM] = self.control_config["input_ub"]["accel"]
+        ubx[STATE_DIM*(N+1) + 1 : : INPUT_DIM] = self.control_config["input_ub"]["ddelta"]
+
+        # Initialize constraints (g) bounds
+        lbg = []
+        ubg = []
+
+        # Define cost function
+        final_st = X[:,-1]
+        cost_fn = (final_st- P[:STATE_DIM,-1]).T @ Q @ (final_st- P[:STATE_DIM,-1]) # Terminal constraint
+        g = X[:,0] - P[:STATE_DIM,0] # Set initial state constraint
+        for k in range(N):
+            st = X[:,k]
+            st_next = X[:,k+1]
+            con = U[:,k]
+            ref = P[:,k]
+            cost_fn += (st - P[:STATE_DIM,k]).T @ Q @ (st - P[:STATE_DIM,k]) + \
+                       (con - P[-INPUT_DIM:,k]).T @ R @ (con - P[-INPUT_DIM:,k])
+            # Define dynamics equality constraint
+            g = ca.vertcat(g, st_next - f(st, con, ref))
+            lbg.append([0]*STATE_DIM)
+            ubg.append([0]*STATE_DIM)
+        
+        OPT_variables = ca.vertcat(
+            X.reshape((-1,1)),
+            U.reshape((-1,1))
+        )
+
+        # Configure NLP solver
+        nlp_prob = {
+            'f': cost_fn,
+            'x': OPT_variables,
+            'g': g, 
+            'p': P
+        }
+        opts = {
+            'ipopt': {
+                'max_iter': 2000,
+                'print_level': 0,
+                'acceptable_tol': 1e-8,
+                'acceptable_obj_change_tol': 1e-6
+            },
+            'print_time': 0
+        }
+        solver = ca.nlpsol('solver', 'ipopt', nlp_prob, opts)
+        
         
 
     # Steps forward dynamics of vehicle one discrete timestep for CasADi symbolic vars
     def casadi_dynamics(self, x, accel, delta_dot, kappa):
         # Expands state variable and precalculates sin/cos
-        s, ey, epsi, vx, vy, omega, delta = [x[i] for i in range(self.x.shape[0])]
+        s, ey, epsi, vx, vy, omega, delta = [x[i] for i in range(STATE_DIM)]
         sin_epsi, cos_epsi = ca.sin(epsi), ca.cos(epsi)
         sin_delta, cos_delta = ca.sin(delta), ca.cos(delta)
 
@@ -281,12 +350,20 @@ class MPCController(Controller):
         Iz = self.veh_config["Iz"]
         lf = self.veh_config["lf"]
         lr = self.veh_config["lr"]
+        c = self.veh_config["c"]
+        rho = 1.225
+        Cd = self.veh_config["Cd"]
+        SA = self.veh_config["SA"]
+        eps = 1e-6 # Avoid divide by 0
+
+        alpha_f = delta - ca.atan2((vy + lf*omega), (vx+eps))
+        alpha_r = -ca.atan2((vy - lr*omega), (vx+eps))
 
         # Calculate various forces 
-        Fxf, Fxr = self.longitudinalForce(accel)
-        Fyf, Fyr = self.lateralForce(x)
+        Fxf, Fxr = 0, m*accel
+        Fyf, Fyr = c*alpha_f, c*alpha_r
         # Fxf, Fxr, Fyf, Fyr = self.saturate_forces(Fxf, Fxr, Fyf, Fyr)
-        Fd = self.dragForce(x)
+        Fd = 0.5 * rho * SA * Cd * vx**2
 
         # Calculate x_dot components from dynamics equations
         s_dot = (vx*cos_epsi - vy*sin_epsi) / (1 - ey * kappa)
@@ -297,7 +374,7 @@ class MPCController(Controller):
         omega_dot = 1/Iz * (lf*Fyf*cos_delta - lr*Fyr)
 
         # Propogate state variable forwards one timestep with Euler step
-        x_dot = ca.SX([s_dot, ey_dot, epsi_dot, vx_dot, vy_dot, omega_dot, delta_dot])
+        x_dot = ca.vertcat(s_dot, ey_dot, epsi_dot, vx_dot, vy_dot, omega_dot, delta_dot)
         # print("xdot", np.round(x_dot, 4))
         x_new = x + x_dot*dt
         # x_new[6] = np.clip(x_new[6], -self.veh_config["max_steer"], self.veh_config["max_steer"])
@@ -330,11 +407,11 @@ class MPCController(Controller):
         Calculate next input (rear wheel commanded acceleration, derivative of steering angle) 
         """
         track = self.scene_config["track"]
-
-        T = self.control_config["T"]    # Prediction horizon
-        N = self.control_config["N"]    # Number of discretization steps
-        dt = T/N                    
-        delta_t = np.linspace(0, T, N+1)
+        T = self.control_config["T"]
+        freq = self.control_config["freq"]
+        dt = 1.0/freq                    
+        delta_t = np.arange(0, T+dt, dt)
+        print(delta_t)
         t_hist, ref_traj = self.getRefTrajectory(state[0], delta_t) # s, ey, epsi, vx, vy, omega, delta, accel, ddelta
         curvature = track.getCurvature(ref_traj[0,:])
 
@@ -351,7 +428,7 @@ class MPCController(Controller):
 from config import *
 veh_config = get_vehicle_config()
 scene_config = get_scene_config(track_type=OVAL_TRACK)
-cont_config = get_controller_config()
+cont_config = get_controller_config(veh_config, scene_config)
 controller = MPCController(veh_config, scene_config, cont_config, "race_lines/oval_raceline.npz")
 controller.getRefTrajectory(3.5, np.linspace(0,0,20))
 controller.computeControl(np.array([900,0,0,0,0,0,0]), [], 0)
