@@ -87,7 +87,7 @@ def get_scene_config(track_type=OVAL_TRACK):
 
     if track_type == OVAL_TRACK:
         # track_config = {"track_half_width":10, "straight_length":100, "curve_radius":90, "ds":0.05}
-        track_config = {"track_half_width":10, "straight_length":1000, "curve_radius":250, "ds":0.1}
+        track_config = {"track_half_width":10, "straight_length":1000, "curve_radius":250, "ds":0.1, "track_type":OVAL_TRACK}
         track = OvalTrack(track_config)
     elif track_type == L_TRACK:
         track_config = {"track_half_width":15, "straight_length":1000, "curve_radius":500, "ds":0.05}
@@ -118,3 +118,15 @@ def get_controller_config():
     controller_config["k_delta"] = [1.2e1, 1e-0, 7e1]
 
     return controller_config
+
+
+
+
+def get_GP_config():
+    GP_config = {}
+
+    GP_config["sample_count"] = 2000
+    GP_config["test_count"] = 200
+    GP_config["ds_bound"] = 250
+
+    return GP_config

@@ -81,8 +81,8 @@ class Simulator:
         if self.sim_success:
             print("Finished simulation: ", sim_steps, " timesteps passed\n")
         if end_plot:
-            self.plot_cl_states()
-            self.plot_agent_track()
+            self.plotCLStates()
+            self.plotAgentTrack()
             plt.show()
         return retVal
     
@@ -121,8 +121,9 @@ class Simulator:
 
         sim_data = {}
 
+        sim_data["track_config"] = self.scene_config["track_config"]
         sim_data["sim_success"] = self.sim_success
-        sim_data["collision_agents"] = self.collision_agents
+        sim_data["collision_agents"] = np.array2string(np.array(self.collision_agents), separator=',', suppress_small=True)
         sim_data["t"] = np.array2string(self.t_hist, separator=',', suppress_small=True)
         sim_data["agent_count"] = len(self.agents)
         for agent in self.agents:
@@ -132,7 +133,7 @@ class Simulator:
         return sim_data
 
 
-    def plot_cl_states(self):
+    def plotCLStates(self):
         titles = ["s", "ey", "epsi", "vx", "vy", "omega", "delta", "accel", "delta_dot"]
         plt.figure(0, figsize=(15,8))
         for agent in self.agents:
@@ -149,7 +150,7 @@ class Simulator:
         plt.legend([str(agent.ID) for agent in self.agents])
 
 
-    def plot_agent_track(self):
+    def plotAgentTrack(self):
         self.scene_config["track"].plotTrack()
         for agent in self.agents:
             x_global_hist = agent.getGlobalStateHistory()
@@ -167,7 +168,7 @@ if __name__ == "__main__":
      
     sim = Simulator(scene_config)
     
-    x0_1 = np.array([1000, 0, 0, 50, 0, 0, 0])
+    x0_1 = np.array([0, 0, 0, 50, 0, 0, 0])
     controller1 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=50)
     agent1 = BicycleVehicle(veh_config, scene_config, x0_1, controller1, 1)
     # sim.addAgent(agent1)
