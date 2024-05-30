@@ -68,8 +68,8 @@ class GaussianProcessRegression():
 
     def predictGP(self, data_input):
         prediction = self.GP.predict(data_input, return_std=False)
+        return prediction
         
-
 
     
     def plotPredictions(self, output, mean_prediction, std_prediction):
@@ -148,4 +148,4 @@ if __name__ == "__main__":
     gpr = GaussianProcessRegression(GP_config)
     gpr.importSimData()
     gpr.trainGP()
-    gpr.predictGP(True)
+    gpr.testPredictGP(True)
