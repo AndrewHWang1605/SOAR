@@ -53,9 +53,9 @@ class Track:
 
     def getCurvature(self, s):
         s = np.mod(np.mod(s, self.total_len) + self.total_len, self.total_len)
-        nearest_s_ind = np.where(s >= self.s)[0][-1]
-        return self.track_curvature[nearest_s_ind]
-
+        curvature = np.interp(s, self.s, self.track_curvature)
+        return curvature
+        
     def getTrackPosition(self, s):
         nearest_s_ind = np.argmin(np.abs(self.s - s%self.total_len))
         track_x, track_y, track_psi = self.track_xypsi[nearest_s_ind]
