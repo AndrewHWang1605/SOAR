@@ -26,6 +26,7 @@ Implement configs
 """
 
 from track import OvalTrack, LTrack
+import casadi as ca
 import numpy as np
 
 OVAL_TRACK = 0
@@ -103,7 +104,7 @@ def get_scene_config(track_type=OVAL_TRACK):
 
 
 
-def get_controller_config():
+def get_controller_config(veh_config, scene_config):
     controller_config = {}
 
     # SINUSOIDAL
@@ -129,8 +130,29 @@ def get_controller_config():
     controller_config["opt_k_delta"] = 0.1
     controller_config["opt_k_ua"] = 1
     controller_config["opt_k_us"] = 1
+    # States: s, ey, epsi, vx, vy, omega, delta
+    # Inputs: accel, ddelta
+    track_half_width = scene_config["track_config"]["track_half_width"]
+    max_steer = veh_config["max_steer"]
+    controller_config["states_lb"] = { "s": 0,                          # m
+                                       "ey": -track_half_width,         # m
+                                       "epsi": -10*np.pi/180,           # rad
+                                       "vx": 0,                         # m/s
+                                       "vy": -2,                        # m/s
+                                       "omega": -1,                     # rad/s
+                                       "delta": -max_steer }            # rad
+    controller_config["states_ub"] = { "s": ca.inf,                     # m
+                                       "ey": track_half_width,          # m
+                                       "epsi": 10*np.pi/180,            # rad
+                                       "vx": 200,                       # m/s
+                                       "vy": 2,                         # m/s
+                                       "omega": 1,                      # rad/s
+                                       "delta": max_steer }             # rad
+    controller_config["input_lb"] = {  "accel": -veh_config["max_accel"],
+                                       "ddelta": -veh_config["max_steer_rate"] }
+    controller_config["input_ub"] = {  "accel": veh_config["max_accel"],
+                                       "ddelta": veh_config["max_steer_rate"] }                                   
 
-    controller_config["states_lb"] = np.array
 
     return controller_config
 
