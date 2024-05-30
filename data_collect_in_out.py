@@ -68,7 +68,7 @@ def runSimulation(agent_inits, end_plots=False):
     """Initialize configurations"""
     veh_config = get_vehicle_config()
     scene_config = get_scene_config()
-    cont_config = get_controller_config()
+    cont_config = get_controller_config(veh_config, scene_config)
      
     sim = Simulator(scene_config)
 

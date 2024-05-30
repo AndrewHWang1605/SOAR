@@ -164,7 +164,7 @@ if __name__ == "__main__":
     """Initialize configurations"""
     veh_config = get_vehicle_config()
     scene_config = get_scene_config(track_type=OVAL_TRACK)
-    cont_config = get_controller_config()
+    cont_config = get_controller_config(veh_config, scene_config)
      
     sim = Simulator(scene_config)
     
