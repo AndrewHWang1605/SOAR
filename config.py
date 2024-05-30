@@ -95,7 +95,7 @@ def get_scene_config(track_type=OVAL_TRACK):
 
     scene_config["track"] = track
     scene_config["track_config"] = track_config
-    scene_config["dt"] = 0.0005
+    scene_config["dt"] = 0.01
     scene_config["sim_time"] = 50
 
     return scene_config
@@ -116,6 +116,11 @@ def get_controller_config():
     controller_config["k_v"] = [6e0, 2e-1, 4e0]
     controller_config["k_theta"] = [1.2e0, 1e-1, 7e0]
     controller_config["k_delta"] = [1.2e1, 1e-0, 7e1]
+
+    # MPC 
+    controller_config["T"] = 5
+    controller_config["N"] = 10
+    controller_config["Q"] = np.eye(7)
 
     return controller_config
 
