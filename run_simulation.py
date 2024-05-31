@@ -53,7 +53,7 @@ class Simulator:
     def addAgent(self, agent):
         self.agents.append(agent)
 
-    def runSim(self, end_plot=False, animate=False):
+    def runSim(self, end_plot=False, animate=False, follow_agent_ID=None):
         print("\nStarting simulation at dt=" + str(self.dt) + " for " + str(self.sim_time) + " seconds")
 
         retVal = True
@@ -79,19 +79,17 @@ class Simulator:
                 if agent.controller.ctrl_period == None: # Run at every timestep
                     recompute_ctrl = True 
                 elif np.isclose((i*self.dt / agent.controller.ctrl_period), np.round(i*self.dt / agent.controller.ctrl_period), atol=1e-3): # Run at proper frequency
-                    # print("Computing Control", i*self.dt, agent.controller.ctrl_period)
                     recompute_ctrl = True 
                 else:
-                    # print("no compute", i*self.dt / agent.controller.ctrl_period)
                     recompute_ctrl = False
                 agent.step(agent_states, recompute_control=recompute_ctrl)
 
-        self.t_hist = self.t_hist[:i+2] # Trim off extra timesteps
+        self.t_hist = self.t_hist[:i+1] # Trim off extra timesteps
 
         if self.sim_success:
             print("Finished simulation: ", sim_steps, " timesteps passed\n")
         if animate:
-            self.animateRace()
+            self.animateRace(follow_agent_ID=follow_agent_ID)
         if end_plot:
             self.plotCLStates()
             self.plotAgentTrack()
@@ -124,11 +122,8 @@ class Simulator:
                     long_bound = oppo_agent.lf + agent.lr
                 lat_bound = oppo_agent.halfwidth + agent.halfwidth
                 collision_state = np.abs(agent_state_CL[:2] - oppo_agent_state_CL[:2]) <= np.array([long_bound, lat_bound])
-                # print(agent_state_CL[:2] - oppo_agent_state_CL[:2])
-                # agent_distance = np.linalg.norm(agent_state_global[:2] - oppo_agent_state_global[:2])
-                # collision_bound = agent.size + oppo_agent.size
-                # if agent_distance <= collision_bound:
                 if np.all(collision_state):
+                    print(agent_state_CL-oppo_agent_state_CL)
                     collision = True
                     collision_agents.update([agent.ID, oppo_agent.ID])
 
@@ -182,7 +177,7 @@ class Simulator:
         x = [0, 1, 2, 3]
         y = [0, 1, 2, 3]
         yaw = [0.0, 0.5, 1.3, 0.5]
-        fig = plt.figure(figsize=(12,10))
+        fig = plt.figure(figsize=(9,9))
         # plt.grid()
         ax = fig.add_subplot(111)
         self.scene_config["track"].plotTrack(ax=ax)
@@ -204,9 +199,8 @@ class Simulator:
                 hw = agent.halfwidth
 
                 x, y, theta, vx, vy, w, delta = agent.x_global_hist[0,:]
-
                 ll_x, ll_y = center2xy(x, y, theta, lf, lr, hw)
-                patch = patches.Rectangle((ll_x, ll_y), lf+lr, 2*hw, fc='b', angle=theta)
+                patch = patches.Rectangle((ll_x, ll_y), lf+lr, 2*hw, fc=agent.color, angle=theta)
                 ax.add_patch(patch)
                 agent.assignPatch(patch)
                 car_patch_list.append(patch)
@@ -220,26 +214,27 @@ class Simulator:
                 hw = agent.halfwidth
                 patch = agent.patch
 
-                x, y, theta, vx, vy, w, delta = agent.x_global_hist[i*10,:]
+                x, y, theta, vx, vy, w, delta = agent.x_global_hist[i*self.scene_config["anim_downsample_factor"],:]
 
                 ll_x, ll_y = center2xy(x, y, theta, lf, lr, hw)
                 if follow_agent_ID is not None and agent.ID == follow_agent_ID:
-                    ax.set_xlim(ll_x-20, ll_x+20)
-                    ax.set_ylim(ll_y-20, ll_y+20)
-                    changed_patches_list.append(ax)
+                    window = self.scene_config["anim_window"]
+                    ax.axis([ll_x-window, ll_x+window,ll_y-window, ll_y+window])
 
                 patch.set_xy([ll_x, ll_y])
                 patch.set_angle(np.rad2deg(theta))
                 changed_patches_list.append(patch)
+
             return changed_patches_list
 
         anim = animation.FuncAnimation(fig, animate,
                                     init_func=init,
-                                    frames=self.t_hist.shape[0]//10,
-                                    interval=1,
-                                    blit=True)
+                                    frames=self.t_hist.shape[0]//self.scene_config["anim_downsample_factor"],
+                                    interval=self.scene_config["anim_downsample_factor"] * self.scene_config["dt"] * 1000,
+                                    repeat=False,
+                                    blit=False)
+        anim.save("./race_video.mp4")
         plt.show()
-
 
 if __name__ == "__main__":
     """Initialize configurations"""
@@ -249,24 +244,25 @@ if __name__ == "__main__":
      
     sim = Simulator(scene_config)
     
-    x0_1 = np.array([1050, 0, 0, 40, 1, 0, 0])
+    x0_1 = np.array([0, 5, 0, 0, 1, 0, 0])
     controller1 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=50)
-    agent1 = BicycleVehicle(veh_config, scene_config, x0_1, controller1, 1)
+    agent1 = BicycleVehicle(veh_config, scene_config, x0_1, controller1, 1, color='b')
     sim.addAgent(agent1)
 
-    x0_2 = np.array([950, 0, 0, 60, 0, 0, 0])
+    x0_2 = np.array([-20, 0, 0, 0, 0, 0, 0])
     controller2 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=75)
-    agent2 = BicycleVehicle(veh_config, scene_config, x0_2, controller2, 2)
+    agent2 = BicycleVehicle(veh_config, scene_config, x0_2, controller2, 2, color='r')
     sim.addAgent(agent2)
 
-    x0_3 = np.array([0, 0, 0, 0, 0, 0, 0])
+    x0_3 = np.array([-40, -5, 0, 80, 0, 0, 0])
     # controller3 = ConstantVelocityController(veh_config, scene_config, cont_config)
     # controller3 = NominalOptimalController(veh_config, scene_config, cont_config, "race_lines/oval_raceline.npz")
     controller3 = MPCController(veh_config, scene_config, cont_config, "race_lines/L_raceline.npz")
-    agent3 = BicycleVehicle(veh_config, scene_config, x0_3, controller3, 3)
-    # sim.addAgent(agent3)
+    agent3 = BicycleVehicle(veh_config, scene_config, x0_3, controller3, 3, color='g')
+    sim.addAgent(agent3)
     
-    sim.runSim(end_plot=False, animate=True)
+    # sim.runSim(end_plot=False, animate=True, follow_agent_ID=None)
+    sim.runSim(end_plot=False, animate=True, follow_agent_ID=3)
     # sim.animateRace()
     
 
