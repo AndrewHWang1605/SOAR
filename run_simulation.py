@@ -58,8 +58,8 @@ class Simulator:
         sim_steps = int(self.sim_time / self.dt)
         for i in range(sim_steps):
             # print(i)
-            if i%100 == 0:
-                print("Running simulation: ", i, " timesteps passed")
+            if i%1000 == 0:
+                print("Running simulation: ", i*self.dt, " s passed")
 
             agent_states = {}
             for agent in self.agents:
@@ -77,7 +77,7 @@ class Simulator:
                 if agent.controller.ctrl_period == None: # Run at every timestep
                     recompute_ctrl = True 
                 elif np.isclose((i*self.dt / agent.controller.ctrl_period), np.round(i*self.dt / agent.controller.ctrl_period), atol=1e-3): # Run at proper frequency
-                    print("Computing Control", i*self.dt, agent.controller.ctrl_period)
+                    # print("Computing Control", i*self.dt, agent.controller.ctrl_period)
                     recompute_ctrl = True 
                 else:
                     # print("no compute", i*self.dt / agent.controller.ctrl_period)
