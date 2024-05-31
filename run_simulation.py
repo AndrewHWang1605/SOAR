@@ -26,9 +26,10 @@ Implement simulator
 """
 
 import numpy as np
+import matplotlib.pyplot as plt
+
 from agents import BicycleVehicle
-from track import OvalTrack, LTrack
-# from config import get_vehicle_config, get_scene_config, get_controller_config
+from track import *
 from config import *
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
@@ -61,7 +62,7 @@ class Simulator:
         for i in range(sim_steps):
             # print(i)
             if i%1000 == 0:
-                print("Running simulation: ", i*self.dt, " s passed")
+                print("Running simulation: ", i*self.dt, " sec passed")
 
             agent_states = {}
             for agent in self.agents:

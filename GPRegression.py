@@ -1,29 +1,42 @@
 import copy, time
 import numpy as np
+import scipy as sp
+import scipy.optimize
 import matplotlib.pyplot as plt
+from functools import partial
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, Matern
 from sklearn.utils import shuffle
+from sklearn.utils.optimize import _check_optimize_result
+
 
 from track import OvalTrack, LTrack
 from data_collect_in_out import importSimDataFromCSV
-from config import get_GP_config
+from config import *
 
 
 
 
-class GaussianProcessRegression():
+class GPRegression():
 
-    def __init__(self, config):
-        self.config = config
-        self.sample_count = config["sample_count"]
-        self.test_count = config["test_count"]
-        self.ds_bound = config["ds_bound"]
+    def __init__(self, GP_config, scene_config):
+        self.GP_config = GP_config
+        self.scene_config = scene_config
+
+        self.sample_count = GP_config["sample_count"]
+        self.sample_attempt_repeat = GP_config["sample_attempt_repeat"]
+        self.test_count = GP_config["test_count"]
+        self.ds_bound = GP_config["ds_bound"]
+        self.lookahead = GP_config["lookahead"]
+        self.dt = scene_config["dt"]
+
+        self.timestep_offset = int(self.lookahead/self.dt)
 
         self.imported_sim_data = []
 
         self.kernel = 1 * Matern(length_scale=1.0, length_scale_bounds=(1e-2, 1e2))
-        self.GP = GaussianProcessRegressor(kernel=self.kernel, n_restarts_optimizer=5)
+        # self.GP = GaussianProcessRegressor(kernel=self.kernel, n_restarts_optimizer=5)
+        self.GP = MyGPR(kernel=self.kernel, n_restarts_optimizer=9)
 
         np.random.seed(888)
 
@@ -31,7 +44,7 @@ class GaussianProcessRegression():
     def importSimData(self):
         sim_success = False
         sim_idx = 0
-        while sim_idx < 20:
+        while sim_idx < 1:
             sim_idx += 1
             imported_sim_data = importSimDataFromCSV(sim_idx)
             sim_success = imported_sim_data[0]
@@ -71,13 +84,21 @@ class GaussianProcessRegression():
 
     
     def plotPredictions(self, output, mean_prediction, std_prediction):
-        titles = ["s", "ey", "epsi", "vx", "vy", "omega", "delta"]
+        titles = ["ds", "ey", "epsi", "vx", "vy", "omega"]
+        normalized_data = np.divide(mean_prediction - output, output)
         plt.figure(0, figsize=(15,8))
-        for i in range(7):
-            plt.subplot(3,3,i+1)
+        for i in range(4):
+            plt.subplot(2,2,i+1)
+            plt.plot(normalized_data[:,i])
+            plt.title(titles[i] + " normalized error")
+
+        plt.figure(1, figsize=(15,8))
+        for i in range(4):
+            plt.subplot(2,2,i+1)
             plt.plot(output[:,i], label="Training data")
             plt.plot(mean_prediction[:,i], label="Mean prediction")
             plt.title(titles[i])
+
         plt.show()
     
 
@@ -88,8 +109,12 @@ class GaussianProcessRegression():
         # GP_output_data array will have full state (7)
         GP_output_data = np.zeros((count, 7))
 
-        # sim_subcount = int(count/len(self.imported_sim_data))
-        sim_subcount = 2 * count/len(self.imported_sim_data)
+        len_data = len(self.imported_sim_data)
+        if len_data <= 2:
+            sim_subcount = count
+        else:
+            # sim_subcount = int(count/len_data)
+            sim_subcount = 2 * count/len_data
         total_counter = 0
 
         for sim in self.imported_sim_data:
@@ -108,10 +133,10 @@ class GaussianProcessRegression():
 
             counter = 0
             break_counter = 0
-            while counter < sim_subcount and break_counter < count*30 and total_counter < count:
+            while counter < sim_subcount and break_counter < count*self.sample_attempt_repeat and total_counter < count:
                 opp_idx = np.random.randint(1, agent_count)
                 opp_states = np.array(states[opp_idx])
-                sample_idx = np.random.randint(0, timesteps-200)
+                sample_idx = np.random.randint(0, timesteps-self.timestep_offset)
 
                 ego_state = ego_states[sample_idx]
                 opp_state = opp_states[sample_idx]
@@ -131,8 +156,27 @@ class GaussianProcessRegression():
                     dey = ey1 - ey2
                     kappa2 = track.getCurvature(s2)
                     GP_train_data[total_counter] = np.array([ds, dey, epsi1, vx1, ey2, epsi2, vx2, omega2, kappa2])
-                    opp_state_p1 = opp_states[sample_idx+200]
-                    GP_output_data[total_counter] = copy.deepcopy(opp_state_p1)
+                    
+                    """Output data as oppo lookahead state"""
+                    # opp_state_p1 = opp_states[sample_idx+self.timestep_offset]
+                    # GP_output_data[total_counter] = copy.deepcopy(opp_state_p1)
+
+                    """Output data as oppo lookahead state with ds instead of s2"""
+                    ego_state_p1 = ego_states[sample_idx+self.timestep_offset]
+                    opp_state_p1 = opp_states[sample_idx+self.timestep_offset]
+                    s1, ey1, epsi1, vx1, vy1, omega1, delta1 = ego_state_p1
+                    s2, ey2, epsi2, vx2, vy2, omega2, delta2 = opp_state_p1
+                    
+                    s1 = np.mod(np.mod(s1, track_length) + track_length, track_length)
+                    s2 = np.mod(np.mod(s2, track_length) + track_length, track_length)
+                    ds = s1 - s2 
+                    if s1 > track_length - self.ds_bound/2 and s2 < self.ds_bound/2:
+                        ds -= track_length
+                    elif s2 > track_length - self.ds_bound/2 and s1 < self.ds_bound/2:
+                        ds += track_length
+
+                    GP_output_data[total_counter] = np.array([ds, ey2, epsi2, vx2, vy2, omega2, delta2])
+
                     counter += 1
                     total_counter += 1
                 break_counter += 1
@@ -146,9 +190,55 @@ class GaussianProcessRegression():
 
 
 
+# class MyGPR(GaussianProcessRegressor):
+#     def __init__(self, kernel, n_restarts_optimizer, max_iter=15000):
+#         super().__init__(kernel=kernel, n_restarts_optimizer=n_restarts_optimizer)
+#         self.max_iter = max_iter
+
+#     def _constrained_optimization(self, obj_func, initial_theta, bounds):
+#         def new_optimizer(obj_func, initial_theta, bounds):
+#             return scipy.optimize.minimize(
+#                 obj_func,
+#                 initial_theta,
+#                 method="L-BFGS-B",
+#                 jac=True,
+#                 bounds=bounds,
+#                 max_iter=self.max_iter,
+#             )
+#         self.optimizer = new_optimizer
+#         return super()._constrained_optimization(obj_func, initial_theta, bounds)
+
+
+class MyGPR(GaussianProcessRegressor):
+    def __init__(self, kernel, n_restarts_optimizer, max_iter=2e05, gtol=1e-06):
+        super().__init__(kernel=kernel, n_restarts_optimizer=n_restarts_optimizer)
+        self.max_iter = max_iter
+        self.gtol = gtol
+
+    def _constrained_optimization(self, obj_func, initial_theta, bounds):
+        if self.optimizer == "fmin_l_bfgs_b":
+            opt_res = sp.optimize.minimize(obj_func, initial_theta, method="L-BFGS-B", jac=True, bounds=bounds, options={'maxiter':self.max_iter, 'gtol': self.gtol})
+            _check_optimize_result("lbfgs", opt_res)
+            theta_opt, func_min = opt_res.x, opt_res.fun
+        elif callable(self.optimizer):
+            theta_opt, func_min = self.optimizer(obj_func, initial_theta, bounds=bounds)
+        else:
+            raise ValueError("Unknown optimizer %s." % self.optimizer)
+        return theta_opt, func_min
+
+
+
+
+
+
+
+
+
+
 if __name__ == "__main__":
     GP_config = get_GP_config()
-    gpr = GaussianProcessRegression(GP_config)
+    scene_config = get_scene_config()
+    gpr = GPRegression(GP_config, scene_config)
     gpr.importSimData()
     gpr.trainGP()
     gpr.testPredictGP(True)

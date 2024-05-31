@@ -144,9 +144,9 @@ class ConstantVelocityController(Controller):
     
 """Try to exactly track nominal trajectory (for debugging)"""
 class NominalOptimalController(Controller):
-    def __init__(self,  veh_config, scene_config, control_config, raceline_file):
+    def __init__(self,  veh_config, scene_config, control_config):
         super().__init__(veh_config, scene_config, control_config)
-        unpack_file = np.load(raceline_file)
+        unpack_file = np.load(control_config["raceline_filepath"])
         self.s_hist = unpack_file["s"]
         self.accel_hist = unpack_file["u_a"]
         self.ddelta_hist = unpack_file["u_s"]
@@ -163,12 +163,13 @@ class NominalOptimalController(Controller):
         nearest_s_ind = np.where(s >= self.s_hist)[0][-1]
         return self.accel_hist[nearest_s_ind], self.ddelta_hist[nearest_s_ind]
 
+
 """MPC to track reference trajectory (based on https://github.com/MMehrez/MPC-and-MHE-implementation-in-MATLAB-using-Casadi/blob/master/workshop_github/Python_Implementation/mpc_code.py)"""
 class MPCController(Controller):
-    def __init__(self,  veh_config, scene_config, control_config, raceline_file):
+    def __init__(self,  veh_config, scene_config, control_config):
         super().__init__(veh_config, scene_config, control_config)
         self.ctrl_period = 1.0 / control_config["opt_freq"]
-        self.race_line = np.load(raceline_file)
+        self.race_line = np.load(control_config["raceline_filepath"])
         self.race_line_mat = self.constructRaceLineMat(self.race_line)
         self.mpc_solver, self.solver_args = self.initSolver()
         self.warm_start = {}
@@ -541,7 +542,7 @@ class MPCController(Controller):
         # a = input("Continue? ")
         # if (a == 'n'):
         #     exit()
-        print("Compute Time", time.time()-t)
+        # print("Compute Time", time.time()-t)
         return u_opt[0, 0], u_opt[1, 0]
 
 
@@ -552,6 +553,6 @@ class MPCController(Controller):
 # veh_config = get_vehicle_config()
 # scene_config = get_scene_config(track_type=OVAL_TRACK)
 # cont_config = get_controller_config(veh_config, scene_config)
-# controller = MPCController(veh_config, scene_config, cont_config, "race_lines/oval_raceline.npz")
+# controller = MPCController(veh_config, scene_config, cont_config)
 # controller.getRefTrajectory(3.5, np.linspace(0,0,20))
 # controller.computeControl(np.array([300,0,0,0,0,0,0]), [], 0)
