@@ -26,6 +26,7 @@ Implement various controllers
 """
 import numpy as np
 import casadi as ca
+import time
 
 STATE_DIM = 7
 INPUT_DIM = 2
@@ -413,15 +414,19 @@ class MPCController(Controller):
 
         # Find closest point on reference trajectory and corresponding time
         total_len = self.scene_config["track"].total_len
+        s0_mult = np.floor_divide(s0, total_len) # Number of laps already completed
         s0 = np.mod(np.mod(s0, total_len) + total_len, total_len)
         s_hist = self.race_line_mat[1,:]
         closest_t = np.interp(s0, s_hist, self.race_line_mat[0,:])
 
         # Shift delta t based on closest current time
         t_hist = closest_t + delta_t
-
+        t_hist_mult = np.floor_divide(t_hist, self.race_line_mat[0, -1]) # Indicates whether lap completed in the middle of horizon
+        t_hist = np.mod(t_hist, self.race_line_mat[0, -1])
+        
         for i in range(ref_traj.shape[0]):
             ref_traj[i,:] = np.interp(t_hist, self.race_line_mat[0,:], self.race_line_mat[i+1,:])
+        ref_traj[0,:] += total_len * (t_hist_mult + s0_mult) # Add lap multiples back, so s monotonically increases
 
         return t_hist, ref_traj
 
@@ -442,6 +447,7 @@ class MPCController(Controller):
         """
         Calculate next input (rear wheel commanded acceleration, derivative of steering angle) 
         """
+        t = time.time()
         if (state[3] < self.control_config["jumpstart_velo"]): # Handles weirdness at very low speeds (accelerates to small velo, then MPC kicks in)
             return self.control_config["input_ub"]["accel"], 0
         track = self.scene_config["track"]
@@ -456,11 +462,8 @@ class MPCController(Controller):
         # Initialize params (reference trajectory, curvature)
         # TODO: Add opponent prediction states here
         state_ref = np.hstack((state.reshape((STATE_DIM,1)), ref_traj[:STATE_DIM,1:]))
-        # print(state_ref)
         P_mat = np.vstack((state_ref, curvature, ref_traj[STATE_DIM:]))
         self.solver_args['p'] = ca.DM(P_mat)
-
-        # print(P_mat[:,:3])
 
         # TODO: Initialize warm start 
         if not self.warm_start: # At first iteration, reference is our best warm start
@@ -483,8 +486,6 @@ class MPCController(Controller):
             ubg=self.solver_args['ubg'],
             p=self.solver_args['p']
         )
-
-        # print("g",sol["g"][-N:])
 
         x_opt = np.array(ca.reshape(sol['x'][: STATE_DIM * (N+1)], STATE_DIM, N+1))
         u_opt = np.array(ca.reshape(sol['x'][STATE_DIM * (N + 1):], INPUT_DIM, N))
@@ -511,7 +512,7 @@ class MPCController(Controller):
         # a = input("Continue? ")
         # if (a == 'n'):
         #     exit()
-        
+        print("Compute Time", time.time()-t)
         return u_opt[0, 0], u_opt[1, 0]
 
 # from config import *
