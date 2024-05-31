@@ -25,6 +25,7 @@ SOFTWARE.
 Implement various controllers
 """
 import numpy as np
+import casadi as ca
 
 STATE_DIM = 7
 INPUT_DIM = 2
@@ -34,6 +35,7 @@ class Controller:
         self.veh_config = veh_config
         self.scene_config = scene_config
         self.control_config = control_config
+        self.ctrl_period = None
 
     def computeControl(self, state, oppo_states, t):
         """
@@ -45,6 +47,7 @@ class Controller:
 class SinusoidalController(Controller):
     def __init__(self,  veh_config, scene_config, control_config):
         super().__init__(veh_config, scene_config, control_config)
+        self.ctrl_period = 1.0 / control_config["sine_ctrl_freq"]
 
     def computeControl(self, state, oppo_states, t):
         """
@@ -57,6 +60,7 @@ class SinusoidalController(Controller):
 class ConstantVelocityController(Controller):
     def __init__(self,  veh_config, scene_config, control_config, v_ref=12):
         super().__init__(veh_config, scene_config, control_config)
+        self.ctrl_period = 1.0 / control_config["pid_ctrl_freq"]
         self.v_ref = v_ref
         self.prev_v_error = 0
         self.total_v_error = 0
@@ -152,16 +156,17 @@ class NominalOptimalController(Controller):
         total_len = self.scene_config["track"].total_len
         s = np.mod(np.mod(s, total_len) + total_len, total_len)
         nearest_s_ind = np.where(s >= self.s_hist)[0][-1]
-        print(nearest_s_ind)
         return self.accel_hist[nearest_s_ind], self.ddelta_hist[nearest_s_ind]
 
 """MPC to track reference trajectory (based on https://github.com/MMehrez/MPC-and-MHE-implementation-in-MATLAB-using-Casadi/blob/master/workshop_github/Python_Implementation/mpc_code.py)"""
 class MPCController(Controller):
     def __init__(self,  veh_config, scene_config, control_config, raceline_file):
         super().__init__(veh_config, scene_config, control_config)
+        self.ctrl_period = 1.0 / control_config["opt_freq"]
         self.race_line = np.load(raceline_file)
         self.race_line_mat = self.constructRaceLineMat(self.race_line)
         self.mpc_solver, self.solver_args = self.initSolver()
+        self.warm_start = {}
         
     def constructRaceLineMat(self, raceline):
         """
@@ -185,7 +190,7 @@ class MPCController(Controller):
 
     def initSolver(self):
         T = self.control_config["T"]        # Prediction horizon
-        freq = self.control_config["freq"]  # Optimization Frequency
+        freq = self.control_config["opt_freq"]  # Optimization Frequency
         N = int(T*freq)                     # Number of discretization steps
 
         # Construct state cost matrix
@@ -301,7 +306,7 @@ class MPCController(Controller):
 
         # Define cost function
         final_st = X[:,-1]
-        cost_fn = (final_st- P[:STATE_DIM,-1]).T @ Q @ (final_st- P[:STATE_DIM,-1]) # Terminal constraint
+        cost_fn = (final_st - P[:STATE_DIM,-1]).T @ Q @ (final_st - P[:STATE_DIM,-1]) # Terminal constraint
         g = X[:,0] - P[:STATE_DIM,0] # Set initial state constraint
         for k in range(N):
             st = X[:,k]
@@ -328,6 +333,7 @@ class MPCController(Controller):
         opts = {
             'ipopt': {
                 'max_iter': 2000,
+                'max_wall_time': 1,
                 'print_level': 0,
                 'acceptable_tol': 1e-8,
                 'acceptable_obj_change_tol': 1e-6
@@ -353,7 +359,7 @@ class MPCController(Controller):
         sin_delta, cos_delta = ca.sin(delta), ca.cos(delta)
 
         # Expand scene and vehicle config variables
-        dt = self.scene_config["dt"]
+        dt = self.ctrl_period
         m = self.veh_config["m"]
         Iz = self.veh_config["Iz"]
         lf = self.veh_config["lf"]
@@ -410,13 +416,26 @@ class MPCController(Controller):
 
         return t_hist, ref_traj
 
+    def getWarmStart(self, x_opt, u_opt):
+        """ Shifts optimized x, u by one timestep, leaving first column of warm_start_x as zero to fill with true x0 """
+        warm_start_x = np.zeros(x_opt.shape)
+        warm_start_x[:,1:-1] = x_opt[:,2:] 
+        warm_start_x[:,-1] = x_opt[:,-1]
+
+        warm_start_u = np.zeros(u_opt.shape)
+        warm_start_u[:,:-1] = u_opt[:,1:]
+        warm_start_u[:,-1] = u_opt[:,-1]
+
+        return warm_start_x, warm_start_u
+
+
     def computeControl(self, state, oppo_states, t):
         """
         Calculate next input (rear wheel commanded acceleration, derivative of steering angle) 
         """
         track = self.scene_config["track"]
         T = self.control_config["T"]
-        freq = self.control_config["freq"]
+        freq = self.control_config["opt_freq"]
         dt = 1.0/freq                    
         delta_t = np.arange(0, T+dt, dt)
         N = delta_t.shape[0]-1
@@ -425,13 +444,21 @@ class MPCController(Controller):
 
         # Initialize params (reference trajectory, curvature)
         # TODO: Add opponent prediction states here
-        P_mat = np.vstack((ref_traj[:STATE_DIM], curvature, ref_traj[STATE_DIM:]))
+        state_ref = np.hstack((state.reshape((STATE_DIM,1)), ref_traj[:STATE_DIM,1:]))
+        # print(state_ref)
+        P_mat = np.vstack((state_ref, curvature, ref_traj[STATE_DIM:]))
         self.solver_args['p'] = ca.DM(P_mat)
 
+        # print(P_mat[:,:3])
+
         # TODO: Initialize warm start 
-        # TODO: Warmstart with reference trajectory
-        X0 = ca.repmat(state, 1, N+1)
-        u0 = ca.DM.zeros((INPUT_DIM, N))
+        if not self.warm_start: # At first iteration, reference is our best warm start
+            X0 = ca.DM(ref_traj[:STATE_DIM, :])
+            u0 = ca.DM(ref_traj[-INPUT_DIM:, :-1])
+        else:
+            X0 = ca.DM(self.warm_start["X0"])
+            u0 = ca.DM(self.warm_start["u0"])
+
         self.solver_args['x0'] = ca.vertcat(
             ca.reshape(X0, STATE_DIM*(N+1), 1),
             ca.reshape(u0, INPUT_DIM*N, 1)
@@ -446,23 +473,45 @@ class MPCController(Controller):
             p=self.solver_args['p']
         )
 
-        print(ca.reshape(sol['x'][: STATE_DIM * (N+1)], STATE_DIM, N+1))
-        print(ca.reshape(sol['x'][STATE_DIM * (N + 1):], INPUT_DIM, N))
+        x_opt = np.array(ca.reshape(sol['x'][: STATE_DIM * (N+1)], STATE_DIM, N+1))
+        u_opt = np.array(ca.reshape(sol['x'][STATE_DIM * (N + 1):], INPUT_DIM, N))
 
+        self.warm_start["X0"], self.warm_start["u0"] = self.getWarmStart(x_opt, u_opt)
+
+        # import matplotlib.pyplot as plt 
+        # titles = ["s", "ey", "epsi", "vx", "vy", "omega", "delta", "accel", "delta_dot"]
+        # plt.figure(0, figsize=(15,8))
+        # print(x_opt[:,:3])
+
+        # for i in range(7):
+        #     plt.subplot(3,3,i+1)
+        #     plt.plot(np.array(x_opt[i,:]).squeeze())
+        #     plt.plot(ref_traj[i,:])
+        #     plt.title(titles[i])
+        # for i in range(7,9):
+        #     plt.subplot(3,3,i+1)
+        #     plt.plot(u_opt[i-7,:])
+        #     plt.title(titles[i])
+        #     plt.plot(ref_traj[i,:])
+        # plt.show()
+
+        # a = input("Continue? ")
+        # if (a == 'n'):
+        #     exit()
         
-        
+        # exit()
         # s, ey, epsi, vx_cl, vy_cl, w, delta = state
         # total_len = self.scene_config["track"].total_len
         # s = np.mod(np.mod(s, total_len) + total_len, total_len)
         # nearest_s_ind = np.where(s >= self.s_hist)[0][-1]
         # print(nearest_s_ind)
         # return self.accel_hist[nearest_s_ind], self.ddelta_hist[nearest_s_ind]
-        return 0, 0
+        return u_opt[0, 0], u_opt[1, 0]
 
-from config import *
-veh_config = get_vehicle_config()
-scene_config = get_scene_config(track_type=OVAL_TRACK)
-cont_config = get_controller_config(veh_config, scene_config)
-controller = MPCController(veh_config, scene_config, cont_config, "race_lines/oval_raceline.npz")
-controller.getRefTrajectory(3.5, np.linspace(0,0,20))
-controller.computeControl(np.array([900,0,0,0,0,0,0]), [], 0)
+# from config import *
+# veh_config = get_vehicle_config()
+# scene_config = get_scene_config(track_type=OVAL_TRACK)
+# cont_config = get_controller_config(veh_config, scene_config)
+# controller = MPCController(veh_config, scene_config, cont_config, "race_lines/oval_raceline.npz")
+# controller.getRefTrajectory(3.5, np.linspace(0,0,20))
+# controller.computeControl(np.array([300,0,0,0,0,0,0]), [], 0)

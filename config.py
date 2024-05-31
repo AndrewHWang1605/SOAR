@@ -96,8 +96,8 @@ def get_scene_config(track_type=OVAL_TRACK):
 
     scene_config["track"] = track
     scene_config["track_config"] = track_config
-    scene_config["dt"] = 0.01
-    scene_config["sim_time"] = 50
+    scene_config["dt"] = 0.001
+    scene_config["sim_time"] = 80
 
     return scene_config
 
@@ -117,17 +117,18 @@ def get_controller_config(veh_config, scene_config):
     controller_config["k_v"] = [6e0, 2e-1, 4e0]
     controller_config["k_theta"] = [1.2e0, 1e-1, 7e0]
     controller_config["k_delta"] = [1.2e1, 1e-0, 7e1]
+    controller_config["pid_ctrl_freq"] = 100 #Hz
 
     # MPC 
-    controller_config["T"] = 5
-    controller_config["freq"] = 30
-    controller_config["opt_k_s"] = 1
-    controller_config["opt_k_ey"] = 1
-    controller_config["opt_k_epsi"] = 1
-    controller_config["opt_k_vx"] = 1
-    controller_config["opt_k_vy"] = 1
-    controller_config["opt_k_omega"] = 1
-    controller_config["opt_k_delta"] = 0.1
+    controller_config["T"] = 0.5 # s 
+    controller_config["opt_freq"] = 40 # Hz
+    controller_config["opt_k_s"] = 80
+    controller_config["opt_k_ey"] = 100
+    controller_config["opt_k_epsi"] = 100
+    controller_config["opt_k_vx"] = 80
+    controller_config["opt_k_vy"] = 80
+    controller_config["opt_k_omega"] = 1000
+    controller_config["opt_k_delta"] = 1
     controller_config["opt_k_ua"] = 1
     controller_config["opt_k_us"] = 1
     # States: s, ey, epsi, vx, vy, omega, delta
@@ -138,21 +139,20 @@ def get_controller_config(veh_config, scene_config):
                                        "ey": -track_half_width,         # m
                                        "epsi": -10*np.pi/180,           # rad
                                        "vx": 0,                         # m/s
-                                       "vy": -2,                        # m/s
+                                       "vy": -4,                        # m/s
                                        "omega": -1,                     # rad/s
                                        "delta": -max_steer }            # rad
     controller_config["states_ub"] = { "s": ca.inf,                     # m
                                        "ey": track_half_width,          # m
                                        "epsi": 10*np.pi/180,            # rad
                                        "vx": 200,                       # m/s
-                                       "vy": 2,                         # m/s
+                                       "vy": 4,                         # m/s
                                        "omega": 1,                      # rad/s
                                        "delta": max_steer }             # rad
     controller_config["input_lb"] = {  "accel": -veh_config["max_accel"],
                                        "ddelta": -veh_config["max_steer_rate"] }
     controller_config["input_ub"] = {  "accel": veh_config["max_accel"],
                                        "ddelta": veh_config["max_steer_rate"] }                                   
-
 
     return controller_config
 
