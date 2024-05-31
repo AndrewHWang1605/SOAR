@@ -33,7 +33,7 @@ from config import *
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import matplotlib.patches as patches
-from controllers import SinusoidalController, ConstantVelocityController, NominalOptimalController, MPCController
+from controllers import *
 
 
 class Simulator:
@@ -53,7 +53,7 @@ class Simulator:
     def addAgent(self, agent):
         self.agents.append(agent)
 
-    def runSim(self, end_plot=False, animate=False, follow_agent_ID=None):
+    def runSim(self, end_plot=False, animate=False, save=False, follow_agent_IDs=[None]):
         print("\nStarting simulation at dt=" + str(self.dt) + " for " + str(self.sim_time) + " seconds")
 
         retVal = True
@@ -84,12 +84,15 @@ class Simulator:
                     recompute_ctrl = False
                 agent.step(agent_states, recompute_control=recompute_ctrl)
 
-        self.t_hist = self.t_hist[:i+1] # Trim off extra timesteps
+        self.t_hist = self.t_hist[:i+2] # Trim off extra timesteps
 
         if self.sim_success:
             print("Finished simulation: ", sim_steps, " timesteps passed\n")
         if animate:
-            self.animateRace(follow_agent_ID=follow_agent_ID)
+            for follow_ID in follow_agent_IDs:
+                anim = self.animateRace(follow_agent_ID=follow_ID)
+                if save:
+                    anim.save("./videos/racerace_video_{}.mp4".format("agent"+str(follow_ID) if follow_ID is not None else "global"))
         if end_plot:
             self.plotCLStates()
             self.plotAgentTrack()
@@ -233,8 +236,8 @@ class Simulator:
                                     interval=self.scene_config["anim_downsample_factor"] * self.scene_config["dt"] * 1000,
                                     repeat=False,
                                     blit=False)
-        anim.save("./race_video.mp4")
-        plt.show()
+        # plt.show()
+        return anim
 
 if __name__ == "__main__":
     """Initialize configurations"""
@@ -244,25 +247,25 @@ if __name__ == "__main__":
      
     sim = Simulator(scene_config)
     
-    x0_1 = np.array([0, 5, 0, 0, 1, 0, 0])
+    x0_1 = np.array([0, 5, 0, 0, 0, 0, 0])
     controller1 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=50)
     agent1 = BicycleVehicle(veh_config, scene_config, x0_1, controller1, 1, color='b')
-    sim.addAgent(agent1)
+    # sim.addAgent(agent1)
 
     x0_2 = np.array([-20, 0, 0, 0, 0, 0, 0])
     controller2 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=75)
     agent2 = BicycleVehicle(veh_config, scene_config, x0_2, controller2, 2, color='r')
-    sim.addAgent(agent2)
+    # sim.addAgent(agent2)
 
-    x0_3 = np.array([-40, -5, 0, 80, 0, 0, 0])
+    x0_3 = np.array([-40, -5, 0, 0, 0, 0, 0])
     # controller3 = ConstantVelocityController(veh_config, scene_config, cont_config)
     # controller3 = NominalOptimalController(veh_config, scene_config, cont_config, "race_lines/oval_raceline.npz")
-    controller3 = MPCController(veh_config, scene_config, cont_config, "race_lines/L_raceline.npz")
+    controller3 = AdversarialMPCController(veh_config, scene_config, cont_config, "race_lines/L_raceline.npz")
     agent3 = BicycleVehicle(veh_config, scene_config, x0_3, controller3, 3, color='g')
     sim.addAgent(agent3)
     
-    # sim.runSim(end_plot=False, animate=True, follow_agent_ID=None)
-    sim.runSim(end_plot=False, animate=True, follow_agent_ID=3)
+    # sim.runSim(end_plot=True, animate=False, save=False, follow_agent_IDs=[None,1,2,3])
+    sim.runSim(end_plot=True, animate=False, save=False, follow_agent_IDs=[None,1,2,3])
     # sim.animateRace()
     
 
