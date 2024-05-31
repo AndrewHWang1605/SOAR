@@ -146,7 +146,7 @@ if __name__ == "__main__":
     # track = OvalTrack(track_config)
 
     # L Track
-    track_config = {"track_half_width":15, "straight_length":100, "curve_radius":50, "ds":0.05}
+    track_config = {"track_half_width":15, "straight_length":1000, "curve_radius":500, "ds":0.05}
     track = LTrack(track_config)
     
     """
@@ -159,12 +159,18 @@ if __name__ == "__main__":
     print("Curvilinear State", cl_state)
     print("Global State", glob_state)
 
-    track.plotTrack()    
-    plt.scatter(track_x, track_y)
-    plt.quiver(glob_state[0], glob_state[1], np.cos(glob_state[2]), np.sin(glob_state[2]))
-    plt.quiver(glob_state[0], glob_state[1], glob_state[3], glob_state[4], color='r')
-    plt.legend(["Centerline", "Left Bound", "Right Bound", "Track pos", "Pose", "Velo"])
-    plt.axis('equal')
+    # track.plotTrack()    
+    # plt.scatter(track_x, track_y)
+    # plt.quiver(glob_state[0], glob_state[1], np.cos(glob_state[2]), np.sin(glob_state[2]))
+    # plt.quiver(glob_state[0], glob_state[1], glob_state[3], glob_state[4], color='r')
+    # plt.legend(["Centerline", "Left Bound", "Right Bound", "Track pos", "Pose", "Velo"])
+    # plt.axis('equal')
+    # plt.show()
+
+    # Test get curvature
+    s = np.linspace(0,10000,1000)
+    plt.plot(s,track.getCurvature(s))
+    # plt.plot(s,track.getCurvature(s%6712))
     plt.show()
 
 
