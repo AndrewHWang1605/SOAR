@@ -261,7 +261,7 @@ if __name__ == "__main__":
     x0_3 = np.array([-40, -5, 0, 0, 0, 0, 0])
     # controller3 = ConstantVelocityController(veh_config, scene_config, cont_config)
     # controller3 = NominalOptimalController(veh_config, scene_config, cont_config, "race_lines/oval_raceline.npz")
-    controller3 = AdversarialMPCController(veh_config, scene_config, cont_config, "race_lines/L_raceline.npz")
+    controller3 = MPCController(veh_config, scene_config, cont_config)
     agent3 = BicycleVehicle(veh_config, scene_config, x0_3, controller3, 3, color='g')
     sim.addAgent(agent3)
     

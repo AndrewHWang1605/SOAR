@@ -542,7 +542,7 @@ class MPCController(Controller):
         # a = input("Continue? ")
         # if (a == 'n'):
         #     exit()
-        # print("Compute Time", time.time()-t)
+        print("Compute Time", time.time()-t)
         return u_opt[0, 0], u_opt[1, 0]
 
 
