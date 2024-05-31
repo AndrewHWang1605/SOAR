@@ -26,6 +26,7 @@ Implement configs
 """
 
 from track import OvalTrack, LTrack
+from controllers import ConstantVelocityController, MPCController
 import casadi as ca
 import numpy as np
 
@@ -91,13 +92,13 @@ def get_scene_config(track_type=OVAL_TRACK):
         track_config = {"track_half_width":10, "straight_length":1000, "curve_radius":250, "ds":0.1, "track_type":OVAL_TRACK}
         track = OvalTrack(track_config)
     elif track_type == L_TRACK:
-        track_config = {"track_half_width":15, "straight_length":1000, "curve_radius":500, "ds":0.05}
+        track_config = {"track_half_width":15, "straight_length":1000, "curve_radius":500, "ds":0.05, "track_type":L_TRACK}
         track = LTrack(track_config)
 
     scene_config["track"] = track
     scene_config["track_config"] = track_config
     scene_config["dt"] = 0.001
-    scene_config["sim_time"] = 90
+    scene_config["sim_time"] = 100
 
     return scene_config
 
@@ -142,6 +143,13 @@ def get_controller_config(veh_config, scene_config):
     # controller_config["opt_k_us"] = 0
     # States: s, ey, epsi, vx, vy, omega, delta
     # Inputs: accel, ddelta
+    
+    track_type = scene_config["track_config"]["track_type"]
+    if track_type == OVAL_TRACK:
+        controller_config["raceline_filepath"] = "race_lines/oval_raceline.npz"
+    elif track_type == L_TRACK:
+        controller_config["raceline_filepath"] = "race_lines/L_raceline.npz"
+
     track_half_width = scene_config["track_config"]["track_half_width"]
     max_steer = veh_config["max_steer"]
     controller_config["states_lb"] = { "s": 0,                          # m
@@ -173,8 +181,26 @@ def get_controller_config(veh_config, scene_config):
 def get_GP_config():
     GP_config = {}
 
-    GP_config["sample_count"] = 2000
+    GP_config["sample_count"] = 500
+    GP_config["sample_attempt_repeat"] = 25
     GP_config["test_count"] = 100
-    GP_config["ds_bound"] = 150
+    GP_config["ds_bound"] = 100
+    GP_config["lookahead"] = 0.5
 
     return GP_config
+
+
+
+
+def get_data_collect_config():
+    data_config = {}
+
+    data_config["sim_count"] = 20
+    data_config["agent_count"] = 2
+    data_config["control_type"] = [MPCController, MPCController]
+    data_config["rand_init"] = False
+    data_config["agent_inits"] = np.array([[900, 0, 0, 0, 0, 0, 0],
+                                           [810, 0, 0, 1, 0, 0, 0],
+                                           [250, 0, 0, 15, 0, 0, 0]])
+
+    return data_config

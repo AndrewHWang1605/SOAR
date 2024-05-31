@@ -26,12 +26,12 @@ Implement simulator
 """
 
 import numpy as np
-from agents import BicycleVehicle
-from track import OvalTrack, LTrack
-# from config import get_vehicle_config, get_scene_config, get_controller_config
-from config import *
 import matplotlib.pyplot as plt
-from controllers import SinusoidalController, ConstantVelocityController, NominalOptimalController, MPCController
+
+from agents import BicycleVehicle
+from track import *
+from config import *
+from controllers import *
 
 
 class Simulator:
@@ -59,7 +59,7 @@ class Simulator:
         for i in range(sim_steps):
             # print(i)
             if i%1000 == 0:
-                print("Running simulation: ", i*self.dt, " s passed")
+                print("Running simulation: ", i*self.dt, " sec passed")
 
             agent_states = {}
             for agent in self.agents:
@@ -87,7 +87,7 @@ class Simulator:
         self.t_hist = self.t_hist[:i+2] # Trim off extra timesteps
 
         if self.sim_success:
-            print("Finished simulation: ", sim_steps, " timesteps passed\n")
+            print("Finished simulation: ", i*self.dt, " sec passed\n")
         if end_plot:
             self.plotCLStates()
             self.plotAgentTrack()
@@ -188,8 +188,8 @@ if __name__ == "__main__":
 
     x0_3 = np.array([0, 0, 0, 0, 0, 0, 0])
     # controller3 = ConstantVelocityController(veh_config, scene_config, cont_config)
-    # controller3 = NominalOptimalController(veh_config, scene_config, cont_config, "race_lines/oval_raceline.npz")
-    controller3 = MPCController(veh_config, scene_config, cont_config, "race_lines/L_raceline.npz")
+    # controller3 = NominalOptimalController(veh_config, scene_config, cont_config)
+    controller3 = MPCController(veh_config, scene_config, cont_config)
     agent3 = BicycleVehicle(veh_config, scene_config, x0_3, controller3, 3)
     sim.addAgent(agent3)
     

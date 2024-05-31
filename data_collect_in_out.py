@@ -29,19 +29,23 @@ Implement data collection module
 
 import numpy as np
 import csv, ast, sys
-import pandas as pd
 
 from agents import BicycleVehicle
-from config import get_vehicle_config, get_scene_config, get_controller_config
-from controllers import ConstantVelocityController
 from run_simulation import Simulator
+from track import *
+from config import *
+from controllers import *
+
 
 
 """Runs simulations and generates data, exporting to csv files"""
-def generateData(sim_count, agent_count, rand_init=False, end_plots=False):
-    agent_inits = np.array([[260, 0, 0, 15, 0, 0, 0],
-                            [240, 0, 0, 12, 0, 0, 0],
-                            [500, 0, 0, 12, 0, 0, 0]])
+def generateData(data_config, end_plots=False):
+    sim_count = data_config["sim_count"]
+    agent_count = data_config["agent_count"]
+    control_type = data_config["control_type"]
+    rand_init = data_config["rand_init"]
+    agent_inits = data_config["agent_inits"]
+
     sims = []
 
     print("\nRunning simulations to generate data")
@@ -52,31 +56,32 @@ def generateData(sim_count, agent_count, rand_init=False, end_plots=False):
             agent_inits = agent_inits[:agent_count, :]
         
         print("Starting to run simulation #", i+1)
-        sim = runSimulation(agent_inits, end_plots)
+        sim = runSimulation(agent_inits, control_type, end_plots)
+        exportSimDataToCSV(sim, i+1)
+        print("Finished exporting simulation #", i+1)
         sims.append(sim)
         print("Finished running simulation #", i+1, "\n")
-
-    print("Exporting simulation data to csv files")
-    for i in range(sim_count):
-        exportSimDataToCSV(sims[i], i+1)
-        print("Finished exporting simulation #", i+1)
 
 
 
 """Initializes a new simulator with agent init states and runs it"""
-def runSimulation(agent_inits, end_plots=False):
+def runSimulation(agent_inits, control_type, end_plots=False):
     """Initialize configurations"""
     veh_config = get_vehicle_config()
-    scene_config = get_scene_config()
+    scene_config = get_scene_config(track_type=L_TRACK)
     cont_config = get_controller_config(veh_config, scene_config)
      
     sim = Simulator(scene_config)
 
     for i in range(len(agent_inits)):
         x0 = np.array(agent_inits[i])
-        v_ref = np.linalg.norm(x0[3:5])
-        controller = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=v_ref)
-        agent = BicycleVehicle(veh_config, scene_config, x0, controller, i+1)
+        if control_type[i] == ConstantVelocityController:
+            v_ref = np.linalg.norm(x0[3:5])
+            controller = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=v_ref)
+        elif control_type[i] == MPCController:
+            controller = MPCController(veh_config, scene_config, cont_config)
+        agent_ID = i+1
+        agent = BicycleVehicle(veh_config, scene_config, x0, controller, agent_ID)
         sim.addAgent(agent)
 
     sim.runSim(end_plots)
@@ -90,16 +95,16 @@ def agentRandomInit(agent_count):
     agent_inits = np.zeros((agent_count, 7))
     past_starts = []
 
-    new_start_ref = np.random.randint(0,3000)
+    new_start_ref = np.random.randint(0,10000)
     for i in range(agent_count):
-        new_start = np.random.randint(new_start_ref, new_start_ref+400)
+        new_start = np.random.randint(new_start_ref, new_start_ref+1000)
         while len(past_starts) > 0:
             if np.any(np.abs(np.array(past_starts) - new_start) <= 100):
-                new_start = np.random.randint(new_start_ref, new_start_ref+400)
+                new_start = np.random.randint(new_start_ref, new_start_ref+1000)
             else:
                 break
         agent_inits[i,0] = new_start
-        agent_inits[i,3] = np.random.randint(60, 80)
+        agent_inits[i,3] = np.random.randint(0, 10)
         past_starts.append(new_start)
         print("Agent", i, "initialized as:", agent_inits[i,0], agent_inits[i,3])
 
@@ -110,7 +115,8 @@ def agentRandomInit(agent_count):
 """Exports a sim's data to a csv file"""
 def exportSimDataToCSV(sim, dataID):
     sim_data = sim.exportSimData()
-    file_name = "train_data/data" + str(dataID) + ".csv"
+    # file_name = "train_data/CV_test_data/data" + str(dataID) + ".csv"
+    file_name = "train_data/MPC_test_data/data" + str(dataID) + ".csv"
 
     with open(file_name, 'w') as csv_file:
         writer = csv.writer(csv_file)
@@ -132,7 +138,8 @@ def importSimDataFromCSV(dataID):
         except OverflowError:
             maxInt = int(maxInt/10)
 
-    file_name = "train_data/data" + str(dataID) + ".csv"
+    # file_name = "train_data/CV_test_data/data" + str(dataID) + ".csv"
+    file_name = "train_data/MPC_test_data/data" + str(dataID) + ".csv"
     with open(file_name) as csv_file:
         reader = csv.reader(csv_file)
         sim_data = dict(reader)
@@ -158,11 +165,7 @@ def importSimDataFromCSV(dataID):
 
 if __name__ == "__main__":
 
-    sim_count = 20
-    agent_count = 2
-    rand_init = True
-    end_plots = False
-
-    generateData(sim_count, agent_count, rand_init, end_plots)
+    data_config = get_data_collect_config()
+    generateData(data_config, end_plots=False)
 
 
