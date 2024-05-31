@@ -31,7 +31,7 @@ from track import OvalTrack, LTrack
 # from config import get_vehicle_config, get_scene_config, get_controller_config
 from config import *
 import matplotlib.pyplot as plt
-from controllers import SinusoidalController, ConstantVelocityController, NominalOptimalController
+from controllers import SinusoidalController, ConstantVelocityController, NominalOptimalController, MPCController
 
 
 class Simulator:
@@ -58,7 +58,7 @@ class Simulator:
         sim_steps = int(self.sim_time / self.dt)
         for i in range(sim_steps):
             # print(i)
-            if i%1000 == 0:
+            if i%100 == 0:
                 print("Running simulation: ", i, " timesteps passed")
 
             agent_states = {}
@@ -74,9 +74,17 @@ class Simulator:
                 break
 
             for agent in self.agents:
-                agent.step(agent_states)
+                if agent.controller.ctrl_period == None: # Run at every timestep
+                    recompute_ctrl = True 
+                elif np.isclose((i*self.dt / agent.controller.ctrl_period), np.round(i*self.dt / agent.controller.ctrl_period), atol=1e-3): # Run at proper frequency
+                    print("Computing Control", i*self.dt, agent.controller.ctrl_period)
+                    recompute_ctrl = True 
+                else:
+                    # print("no compute", i*self.dt / agent.controller.ctrl_period)
+                    recompute_ctrl = False
+                agent.step(agent_states, recompute_control=recompute_ctrl)
 
-        self.t_hist = self.t_hist[:i+2]
+        self.t_hist = self.t_hist[:i+2] # Trim off extra timesteps
 
         if self.sim_success:
             print("Finished simulation: ", sim_steps, " timesteps passed\n")
@@ -163,7 +171,7 @@ class Simulator:
 if __name__ == "__main__":
     """Initialize configurations"""
     veh_config = get_vehicle_config()
-    scene_config = get_scene_config(track_type=OVAL_TRACK)
+    scene_config = get_scene_config(track_type=L_TRACK)
     cont_config = get_controller_config(veh_config, scene_config)
      
     sim = Simulator(scene_config)
@@ -171,18 +179,19 @@ if __name__ == "__main__":
     x0_1 = np.array([0, 0, 0, 50, 0, 0, 0])
     controller1 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=50)
     agent1 = BicycleVehicle(veh_config, scene_config, x0_1, controller1, 1)
-    sim.addAgent(agent1)
+    # sim.addAgent(agent1)
 
     x0_2 = np.array([350, 0, 0, 75, 0, 0, 0])
     controller2 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=75)
     agent2 = BicycleVehicle(veh_config, scene_config, x0_2, controller2, 2)
     # sim.addAgent(agent2)
 
-    x0_3 = np.array([300, -10, 0, 80, 0, 0, 0])
-    controller3 = ConstantVelocityController(veh_config, scene_config, cont_config)
-    controller3 = NominalOptimalController(veh_config, scene_config, cont_config, "race_lines/oval_raceline.npz")
+    x0_3 = np.array([0, 0, 0, 0, 0, 0, 0])
+    # controller3 = ConstantVelocityController(veh_config, scene_config, cont_config)
+    # controller3 = NominalOptimalController(veh_config, scene_config, cont_config, "race_lines/oval_raceline.npz")
+    controller3 = MPCController(veh_config, scene_config, cont_config, "race_lines/L_raceline.npz")
     agent3 = BicycleVehicle(veh_config, scene_config, x0_3, controller3, 3)
-    # sim.addAgent(agent3)
+    sim.addAgent(agent3)
     
     sim.runSim(True)
     

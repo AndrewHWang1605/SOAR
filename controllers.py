@@ -270,8 +270,9 @@ class MPCController(Controller):
         P = ca.SX.sym('X', STATE_DIM+INPUT_DIM+1, N+1)
 
         # Define dynamics function
-        next_state = self.casadi_dynamics(states, accel_ca, ddelta_ca, kappa_ref_ca)
+        next_state, force_norm = self.casadi_dynamics(states, accel_ca, ddelta_ca, kappa_ref_ca)
         f = ca.Function('f', [states, controls, reference], [next_state]) # Maps states, controls, reference (for curvature) to next state
+        force_fun = ca.Function('force_fun', [states, controls, reference], [force_norm])
 
         # Define state constraints
         lbx = ca.DM.zeros((STATE_DIM*(N+1) + INPUT_DIM*N, 1))
@@ -299,15 +300,20 @@ class MPCController(Controller):
 
         # Initialize constraints (g) bounds
         MAX_NUM_OPPONENTS = 5
-        # lbg = ca.DM.zeros((STATE_DIM*(N+1) + 2*MAX_NUM_OPPONENTS, 1)) # N+1 dynamics constraints, up to 5 opponents (only consider s and ey)
-        # ubg = ca.DM.zeros((STATE_DIM*(N+1) + 2*MAX_NUM_OPPONENTS, 1))
-        lbg = ca.DM.zeros((STATE_DIM*(N+1), 1)) # N+1 dynamics constraints only, no opponents
-        ubg = ca.DM.zeros((STATE_DIM*(N+1), 1))
+        lbg = ca.DM.zeros((STATE_DIM*(N+1) + 2*MAX_NUM_OPPONENTS, 1)) # N+1 dynamics constraints, up to 5 opponents (only consider s and ey)
+        ubg = ca.DM.zeros((STATE_DIM*(N+1) + 2*MAX_NUM_OPPONENTS, 1))
+        lbg = ca.DM.zeros((STATE_DIM*(N+1) + (N), 1)) # N+1 dynamics constraints, N total force constraints, no opponents
+        ubg = ca.DM.zeros((STATE_DIM*(N+1) + (N), 1))
+        ubg[-(N):] = self.veh_config["downforce_coeff"] * self.veh_config["m"] * 9.81
+
+        # lbg = ca.DM.zeros((STATE_DIM*(N+1), 1)) # N+1 dynamics constraints, N total force constraints, no opponents
+        # ubg = ca.DM.zeros((STATE_DIM*(N+1), 1))
 
         # Define cost function
         final_st = X[:,-1]
         cost_fn = (final_st - P[:STATE_DIM,-1]).T @ Q @ (final_st - P[:STATE_DIM,-1]) # Terminal constraint
         g = X[:,0] - P[:STATE_DIM,0] # Set initial state constraint
+        g_temp = ca.DM()
         for k in range(N):
             st = X[:,k]
             st_next = X[:,k+1]
@@ -317,6 +323,8 @@ class MPCController(Controller):
                        (con - P[-INPUT_DIM:,k]).T @ R @ (con - P[-INPUT_DIM:,k])
             # Define dynamics equality constraint
             g = ca.vertcat(g, st_next - f(st, con, ref))
+            g_temp = ca.vertcat(g_temp, force_fun(st, con, ref))
+        g = ca.vertcat(g, g_temp)
         
         OPT_variables = ca.vertcat(
             X.reshape((-1,1)),
@@ -333,7 +341,7 @@ class MPCController(Controller):
         opts = {
             'ipopt': {
                 'max_iter': 2000,
-                'max_wall_time': 1,
+                'max_wall_time': 1, #s
                 'print_level': 0,
                 'acceptable_tol': 1e-8,
                 'acceptable_obj_change_tol': 1e-6
@@ -392,7 +400,8 @@ class MPCController(Controller):
         # print("xdot", np.round(x_dot, 4))
         x_new = x + x_dot*dt
         # x_new[6] = np.clip(x_new[6], -self.veh_config["max_steer"], self.veh_config["max_steer"])
-        return x_new
+        force_norm = ca.norm_2(ca.vertcat(Fxr, Fyf, Fyr)) # Assume Fxf = 0
+        return x_new, force_norm
 
     def getRefTrajectory(self, s0, delta_t):
         """
@@ -433,6 +442,8 @@ class MPCController(Controller):
         """
         Calculate next input (rear wheel commanded acceleration, derivative of steering angle) 
         """
+        if (state[3] < self.control_config["jumpstart_velo"]): # Handles weirdness at very low speeds (accelerates to small velo, then MPC kicks in)
+            return self.control_config["input_ub"]["accel"], 0
         track = self.scene_config["track"]
         T = self.control_config["T"]
         freq = self.control_config["opt_freq"]
@@ -473,6 +484,8 @@ class MPCController(Controller):
             p=self.solver_args['p']
         )
 
+        # print("g",sol["g"][-N:])
+
         x_opt = np.array(ca.reshape(sol['x'][: STATE_DIM * (N+1)], STATE_DIM, N+1))
         u_opt = np.array(ca.reshape(sol['x'][STATE_DIM * (N + 1):], INPUT_DIM, N))
 
@@ -499,13 +512,6 @@ class MPCController(Controller):
         # if (a == 'n'):
         #     exit()
         
-        # exit()
-        # s, ey, epsi, vx_cl, vy_cl, w, delta = state
-        # total_len = self.scene_config["track"].total_len
-        # s = np.mod(np.mod(s, total_len) + total_len, total_len)
-        # nearest_s_ind = np.where(s >= self.s_hist)[0][-1]
-        # print(nearest_s_ind)
-        # return self.accel_hist[nearest_s_ind], self.ddelta_hist[nearest_s_ind]
         return u_opt[0, 0], u_opt[1, 0]
 
 # from config import *

@@ -157,9 +157,11 @@ class BicycleVehicle(Agent):
         lr = self.veh_config["lr"]
         eps = 1e-6 # Avoid divide by 0
 
-        alpha_f = delta - np.arctan((vy + lf*omega) / (vx+eps))
-        alpha_r = -np.arctan((vy - lr*omega) / (vx+eps))
+
+        alpha_f = delta - np.arctan2((vy + lf*omega), (vx+eps))
+        alpha_r = -np.arctan2((vy - lr*omega), (vx+eps))
                  
+        # print(vx, vy, omega, delta)        
         # print("Pre-Slip Angles", vx, vy, omega, delta)
         # print("Slip Angles [deg]", alpha_f/np.pi * 180, alpha_r/np.pi*180)
         return alpha_f, alpha_r
@@ -185,7 +187,8 @@ class BicycleVehicle(Agent):
             return Fxf, Fxr, Fyf, Fyr
 
         else:
-            print("Exceeded max force: {}g".format(np.linalg.norm(F)/Fmax))
+            print("== Exceeded max force: {}g".format(np.linalg.norm(F)/Fmax))
+            print(Fxf, Fxr, Fyf, Fyr)
             return Fxf, Fxr, Fyf, Fyr
 
             # normF = F / np.linalg.norm(F) * Fmax

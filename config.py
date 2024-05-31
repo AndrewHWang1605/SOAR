@@ -97,7 +97,7 @@ def get_scene_config(track_type=OVAL_TRACK):
     scene_config["track"] = track
     scene_config["track_config"] = track_config
     scene_config["dt"] = 0.001
-    scene_config["sim_time"] = 80
+    scene_config["sim_time"] = 10
 
     return scene_config
 
@@ -123,14 +123,23 @@ def get_controller_config(veh_config, scene_config):
     controller_config["T"] = 0.5 # s 
     controller_config["opt_freq"] = 40 # Hz
     controller_config["opt_k_s"] = 80
-    controller_config["opt_k_ey"] = 100
+    controller_config["opt_k_ey"] = 500
     controller_config["opt_k_epsi"] = 100
     controller_config["opt_k_vx"] = 80
     controller_config["opt_k_vy"] = 80
-    controller_config["opt_k_omega"] = 1000
-    controller_config["opt_k_delta"] = 1
+    controller_config["opt_k_omega"] = 100
+    controller_config["opt_k_delta"] = 0.1
     controller_config["opt_k_ua"] = 1
     controller_config["opt_k_us"] = 1
+    # controller_config["opt_k_s"] = 0
+    # controller_config["opt_k_ey"] = 0
+    # controller_config["opt_k_epsi"] = 0
+    # controller_config["opt_k_vx"] = 10
+    # controller_config["opt_k_vy"] = 0
+    # controller_config["opt_k_omega"] = 0
+    # controller_config["opt_k_delta"] = 0
+    # controller_config["opt_k_ua"] = 0
+    # controller_config["opt_k_us"] = 0
     # States: s, ey, epsi, vx, vy, omega, delta
     # Inputs: accel, ddelta
     track_half_width = scene_config["track_config"]["track_half_width"]
@@ -152,7 +161,9 @@ def get_controller_config(veh_config, scene_config):
     controller_config["input_lb"] = {  "accel": -veh_config["max_accel"],
                                        "ddelta": -veh_config["max_steer_rate"] }
     controller_config["input_ub"] = {  "accel": veh_config["max_accel"],
-                                       "ddelta": veh_config["max_steer_rate"] }                                   
+                                       "ddelta": veh_config["max_steer_rate"] }  
+
+    controller_config["jumpstart_velo"] = 0.5 #m/s                                 
 
     return controller_config
 
