@@ -189,6 +189,10 @@ class BicycleVehicle(Agent):
         else:
             print("== Exceeded max force: {}g".format(np.linalg.norm(F)/Fmax))
             print(Fxf, Fxr, Fyf, Fyr)
+            # raise ValueError
+            a = input("Continue? ")
+            if (a == 'n'):
+                exit()
             return Fxf, Fxr, Fyf, Fyr
 
             # normF = F / np.linalg.norm(F) * Fmax
