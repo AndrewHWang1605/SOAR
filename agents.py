@@ -25,7 +25,6 @@ SOFTWARE.
 Implement various agents 
 """
 import numpy as np
-import casadi as ca
 import copy
 
 class Agent:
@@ -36,6 +35,8 @@ class Agent:
         self.controller = controller
         self.ID = ID
         self.current_timestep = 0
+        self.last_accel = None
+        self.last_ddelta = None
 
         self.init_histories()
 
@@ -52,7 +53,7 @@ class Agent:
         self.u_hist = np.zeros((timesteps, 2))
 
     # Implement dynamics and update state one timestep later
-    def step(self, oppo_states):
+    def step(self, oppo_states, recompute_control=False):
         raise NotImplementedError("Inheritance not implemented correctly")
 
     def getLastState(self):
@@ -83,9 +84,13 @@ class BicycleVehicle(Agent):
     Implement dynamics and update state one timestep later
     oppo_states: Nxk 
     """
-    def step(self, oppo_states):
-        accel, delta_dot = self.controller.computeControl(self.x_hist[self.current_timestep], oppo_states, self.current_timestep*self.dt)
-        accel, delta_dot = self.saturate_inputs(accel, delta_dot)
+    def step(self, oppo_states, recompute_control=False):
+        if recompute_control:
+            accel, delta_dot = self.controller.computeControl(self.x_hist[self.current_timestep], oppo_states, self.current_timestep*self.dt)
+            accel, delta_dot = self.saturate_inputs(accel, delta_dot)
+            self.last_accel, self.last_ddelta = accel, delta_dot
+        else:
+            accel, delta_dot = self.last_accel, self.last_ddelta
         x_new = self.dynamics(self.x, accel, delta_dot)
         self.x = x_new
         self.x_global = self.scene_config["track"].CLtoGlobal(x_new)
@@ -93,6 +98,7 @@ class BicycleVehicle(Agent):
         self.x_global_hist[self.current_timestep+1, :] = copy.deepcopy(self.x_global)
         self.u_hist[self.current_timestep, :] = np.array([accel, delta_dot])
         self.current_timestep += 1
+        # print(x_new)
         return x_new
     
     # Steps forward dynamics of vehicle one discrete timestep
@@ -109,7 +115,7 @@ class BicycleVehicle(Agent):
         Iz = self.veh_config["Iz"]
         lf = self.veh_config["lf"]
         lr = self.veh_config["lr"]
-
+        # print(accel, delta_dot)
         # Calculate various forces 
         Fxf, Fxr = self.longitudinalForce(accel)
         Fyf, Fyr = self.lateralForce(x)
