@@ -181,10 +181,10 @@ def get_controller_config(veh_config, scene_config):
 def get_GP_config():
     GP_config = {}
 
-    GP_config["sample_count"] = 500
+    GP_config["sample_count"] = 3000
     GP_config["sample_attempt_repeat"] = 25
     GP_config["test_count"] = 100
-    GP_config["ds_bound"] = 100
+    GP_config["ds_bound"] = 200
     GP_config["lookahead"] = 0.5
 
     return GP_config
@@ -198,7 +198,7 @@ def get_data_collect_config():
     data_config["sim_count"] = 20
     data_config["agent_count"] = 2
     data_config["control_type"] = [MPCController, MPCController]
-    data_config["rand_init"] = False
+    data_config["rand_init"] = True
     data_config["agent_inits"] = np.array([[900, 0, 0, 0, 0, 0, 0],
                                            [810, 0, 0, 1, 0, 0, 0],
                                            [250, 0, 0, 15, 0, 0, 0]])

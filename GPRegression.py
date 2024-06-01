@@ -152,7 +152,7 @@ class GPRegression():
                     ds += track_length
 
                 if abs(ds) <= self.ds_bound:
-                    print(total_counter, np.round(ds,2))
+                    holder = s2
                     dey = ey1 - ey2
                     kappa2 = track.getCurvature(s2)
                     GP_train_data[total_counter] = np.array([ds, dey, epsi1, vx1, ey2, epsi2, vx2, omega2, kappa2])
@@ -177,8 +177,11 @@ class GPRegression():
 
                     GP_output_data[total_counter] = np.array([ds, ey2, epsi2, vx2, vy2, omega2, delta2])
 
+
+                    print(total_counter, np.round(ds,2), np.round(holder-s2, 2))
                     counter += 1
                     total_counter += 1
+
                 break_counter += 1
         
         print("\ntotal_counter =", total_counter)
@@ -186,27 +189,6 @@ class GPRegression():
         output_data = GP_output_data[:total_counter-1]
         shuffle_train_data, shuffle_output_data = shuffle(train_data, output_data)
         return shuffle_train_data, shuffle_output_data
-
-
-
-
-# class MyGPR(GaussianProcessRegressor):
-#     def __init__(self, kernel, n_restarts_optimizer, max_iter=15000):
-#         super().__init__(kernel=kernel, n_restarts_optimizer=n_restarts_optimizer)
-#         self.max_iter = max_iter
-
-#     def _constrained_optimization(self, obj_func, initial_theta, bounds):
-#         def new_optimizer(obj_func, initial_theta, bounds):
-#             return scipy.optimize.minimize(
-#                 obj_func,
-#                 initial_theta,
-#                 method="L-BFGS-B",
-#                 jac=True,
-#                 bounds=bounds,
-#                 max_iter=self.max_iter,
-#             )
-#         self.optimizer = new_optimizer
-#         return super()._constrained_optimization(obj_func, initial_theta, bounds)
 
 
 class MyGPR(GaussianProcessRegressor):
