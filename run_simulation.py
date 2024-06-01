@@ -60,7 +60,6 @@ class Simulator:
         retVal = True
         sim_steps = int(self.sim_time / self.dt)
         for i in range(sim_steps):
-            # print(i)
             if i%1000 == 0:
                 print("Running simulation: ", i*self.dt, " sec passed")
 
@@ -189,9 +188,6 @@ class Simulator:
         # plt.grid()
         ax = fig.add_subplot(111)
         self.scene_config["track"].plotTrack(ax=ax)
-        # ax.set_xlim(-10, 400)
-        # ax.set_ylim(-5, 8)
-        # plt.axis('equal')
 
         def center2xy(xc, yc, psi, lf, lr, hw):
             """ Params are center x, center y, orientation, lf, lr, half width of car """
