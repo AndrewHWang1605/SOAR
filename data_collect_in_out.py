@@ -97,7 +97,7 @@ def agentRandomInit(agent_count):
 
     new_start_ref = np.random.randint(0,10000)
     for i in range(agent_count):
-        new_start = np.random.randint(new_start_ref, new_start_ref+1000)
+        new_start = np.random.randint(new_start_ref, new_start_ref+500)
         while len(past_starts) > 0:
             if np.any(np.abs(np.array(past_starts) - new_start) <= 100):
                 new_start = np.random.randint(new_start_ref, new_start_ref+1000)

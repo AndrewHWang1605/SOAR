@@ -1,9 +1,34 @@
-import copy, time
+"""
+MIT License
+
+Copyright (c) 2024 Andrew Wang, Bryan Yang
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+"""
+"""
+Implement Gaussian process module
+"""
+
+import copy, time, pickle
 import numpy as np
 import scipy as sp
-import scipy.optimize
 import matplotlib.pyplot as plt
-from functools import partial
 from sklearn.gaussian_process import GaussianProcessRegressor
 from sklearn.gaussian_process.kernels import RBF, Matern
 from sklearn.utils import shuffle
@@ -35,10 +60,10 @@ class GPRegression():
         self.imported_sim_data = []
 
         self.kernel = 1 * Matern(length_scale=1.0, length_scale_bounds=(1e-2, 1e2))
-        # self.GP = GaussianProcessRegressor(kernel=self.kernel, n_restarts_optimizer=5)
-        self.GP = MyGPR(kernel=self.kernel, n_restarts_optimizer=9)
+        self.GP = GaussianProcessRegressor(kernel=self.kernel, n_restarts_optimizer=2)
+        # self.GP = MyGPR(kernel=self.kernel, n_restarts_optimizer=9)
 
-        np.random.seed(888)
+        np.random.seed(1)
 
         
     def importSimData(self):
@@ -50,8 +75,9 @@ class GPRegression():
             sim_success = imported_sim_data[0]
             if sim_success:
                 self.imported_sim_data.append(imported_sim_data)
-            # self.imported_sim_data.append(imported_sim_data)
-
+                print("Imported successful sim:", sim_idx)
+            else:
+                print("Skipped failed sim:", sim_idx)
 
 
     def trainGP(self):
@@ -65,6 +91,7 @@ class GPRegression():
         print(self.GP.kernel_)
 
 
+
     def testPredictGP(self, end_plot=False):
         random_data, random_output = self.getSampleDataVaried(self.test_count)
         start_time = time.time()
@@ -74,6 +101,24 @@ class GPRegression():
 
         if end_plot:
             self.plotPredictions(random_output, mean_prediction, std_prediction)
+
+
+    def exportGP(self, file_path='gp_models/model.pkl'):
+        try:
+            with open(file_path, 'wb') as f:
+                pickle.dump(self.GP, f)
+            print("Exported GP model to pickle file:", file_path)
+        except:
+            print("Error occurred when exporting GP to pickle file:", file_path)
+        
+
+    def importGP(self, file_path='gp_models/model.pkl'):
+        try:
+            with open(file_path, 'rb') as f:
+                self.GP = pickle.load(f)
+            print("Imported GP model from pickle file:", file_path)
+        except:
+            print("Error occurred when importing GP from pickle file:", file_path)
 
 
 
@@ -146,13 +191,13 @@ class GPRegression():
                 s1 = np.mod(np.mod(s1, track_length) + track_length, track_length)
                 s2 = np.mod(np.mod(s2, track_length) + track_length, track_length)
                 ds = s1 - s2 
-                if s1 > track_length - self.ds_bound/2 and s2 < self.ds_bound/2:
-                    ds -= track_length
-                elif s2 > track_length - self.ds_bound/2 and s1 < self.ds_bound/2:
-                    ds += track_length
+                ds = np.mod(np.mod(ds, track_length) + track_length, track_length)
+                # if s1 > track_length - self.ds_bound/2 and s2 < self.ds_bound/2:
+                #     ds -= track_length
+                # elif s2 > track_length - self.ds_bound/2 and s1 < self.ds_bound/2:
+                #     ds += track_length
 
                 if abs(ds) <= self.ds_bound:
-                    print(total_counter, np.round(ds,2))
                     dey = ey1 - ey2
                     kappa2 = track.getCurvature(s2)
                     GP_train_data[total_counter] = np.array([ds, dey, epsi1, vx1, ey2, epsi2, vx2, omega2, kappa2])
@@ -164,21 +209,25 @@ class GPRegression():
                     """Output data as oppo lookahead state with ds instead of s2"""
                     ego_state_p1 = ego_states[sample_idx+self.timestep_offset]
                     opp_state_p1 = opp_states[sample_idx+self.timestep_offset]
-                    s1, ey1, epsi1, vx1, vy1, omega1, delta1 = ego_state_p1
-                    s2, ey2, epsi2, vx2, vy2, omega2, delta2 = opp_state_p1
+                    s1_p1, ey1_p1, epsi1_p1, vx1_p1, vy1_p1, omega1_p1, delta1_p1 = ego_state_p1
+                    s2_p1, ey2_p1, epsi2_p1, vx2_p1, vy2_p1, omega2_p1, delta2_p1 = opp_state_p1
                     
-                    s1 = np.mod(np.mod(s1, track_length) + track_length, track_length)
-                    s2 = np.mod(np.mod(s2, track_length) + track_length, track_length)
-                    ds = s1 - s2 
-                    if s1 > track_length - self.ds_bound/2 and s2 < self.ds_bound/2:
-                        ds -= track_length
-                    elif s2 > track_length - self.ds_bound/2 and s1 < self.ds_bound/2:
-                        ds += track_length
+                    s1_p1 = np.mod(np.mod(s1_p1, track_length) + track_length, track_length)
+                    s2_p1 = np.mod(np.mod(s2_p1, track_length) + track_length, track_length)
+                    ds_p1 = s1_p1 - s2_p1 
+                    ds_p1 = np.mod(np.mod(ds_p1, track_length) + track_length, track_length)
+                    # if s1_p1 > track_length - self.ds_bound/2 and s2_p1 < self.ds_bound/2:
+                    #     ds_p1 -= track_length
+                    # elif s2_p1 > track_length - self.ds_bound/2 and s1_p1 < self.ds_bound/2:
+                    #     ds_p1 += track_length
+                    dey_p1 = ey1_p1 - ey2_p1
 
-                    GP_output_data[total_counter] = np.array([ds, ey2, epsi2, vx2, vy2, omega2, delta2])
+                    GP_output_data[total_counter] = np.array([ds_p1, dey_p1, epsi2_p1, vx2_p1, vy2_p1, omega2_p1, delta2_p1])
 
+                    print(total_counter, np.round(ds,2), np.round(s2_p1 - s2, 2))
                     counter += 1
                     total_counter += 1
+
                 break_counter += 1
         
         print("\ntotal_counter =", total_counter)
@@ -186,27 +235,6 @@ class GPRegression():
         output_data = GP_output_data[:total_counter-1]
         shuffle_train_data, shuffle_output_data = shuffle(train_data, output_data)
         return shuffle_train_data, shuffle_output_data
-
-
-
-
-# class MyGPR(GaussianProcessRegressor):
-#     def __init__(self, kernel, n_restarts_optimizer, max_iter=15000):
-#         super().__init__(kernel=kernel, n_restarts_optimizer=n_restarts_optimizer)
-#         self.max_iter = max_iter
-
-#     def _constrained_optimization(self, obj_func, initial_theta, bounds):
-#         def new_optimizer(obj_func, initial_theta, bounds):
-#             return scipy.optimize.minimize(
-#                 obj_func,
-#                 initial_theta,
-#                 method="L-BFGS-B",
-#                 jac=True,
-#                 bounds=bounds,
-#                 max_iter=self.max_iter,
-#             )
-#         self.optimizer = new_optimizer
-#         return super()._constrained_optimization(obj_func, initial_theta, bounds)
 
 
 class MyGPR(GaussianProcessRegressor):
@@ -228,17 +256,14 @@ class MyGPR(GaussianProcessRegressor):
 
 
 
-
-
-
-
-
-
-
 if __name__ == "__main__":
     GP_config = get_GP_config()
     scene_config = get_scene_config()
     gpr = GPRegression(GP_config, scene_config)
     gpr.importSimData()
-    gpr.trainGP()
+
+    # gpr.trainGP()
+    # gpr.exportGP()
+
+    gpr.importGP()
     gpr.testPredictGP(True)
