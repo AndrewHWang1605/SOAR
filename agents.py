@@ -28,7 +28,7 @@ import numpy as np
 import copy
 
 class Agent:
-    def __init__(self, veh_config, scene_config, x0, controller, ID=999, color='k'):
+    def __init__(self, veh_config, scene_config, x0, controller, ID=999, color='k', add_noise=False):
         self.veh_config = veh_config
         self.scene_config = scene_config
         self.x = x0
@@ -38,6 +38,7 @@ class Agent:
         self.last_accel = None
         self.last_ddelta = None
         self.color = color
+        self.add_noise = add_noise
 
         self.initHistories()
 
@@ -90,8 +91,8 @@ class Agent:
 
    
 class BicycleVehicle(Agent):
-    def __init__(self, veh_config, scene_config, x0, controller, ID=999, color='k'):
-        super().__init__(veh_config, scene_config, x0, controller, ID, color)
+    def __init__(self, veh_config, scene_config, x0, controller, ID=999, color='k', add_noise=False):
+        super().__init__(veh_config, scene_config, x0, controller, ID, color, add_noise)
 
     """
     Implement dynamics and update state one timestep later
@@ -100,11 +101,15 @@ class BicycleVehicle(Agent):
     def step(self, oppo_states, recompute_control=False):
         if recompute_control:
             accel, delta_dot = self.controller.computeControl(self.x_hist[self.current_timestep], oppo_states, self.current_timestep*self.dt)
-            accel, delta_dot = self.saturate_inputs(accel, delta_dot)
+            accel, delta_dot = self.saturateInputs(accel, delta_dot)
             self.last_accel, self.last_ddelta = accel, delta_dot
         else:
             accel, delta_dot = self.last_accel, self.last_ddelta
+
         x_new = self.dynamics(self.x, accel, delta_dot)
+        if self.add_noise:
+            x_new = self.addProcessNoise(x_new)
+
         self.x = x_new
         self.x_global = self.scene_config["track"].CLtoGlobal(x_new)
         self.x_hist[self.current_timestep+1, :] = copy.deepcopy(self.x)
@@ -130,7 +135,7 @@ class BicycleVehicle(Agent):
         # Calculate various forces 
         Fxf, Fxr = self.longitudinalForce(accel)
         Fyf, Fyr = self.lateralForce(x)
-        Fxf, Fxr, Fyf, Fyr = self.saturate_forces(Fxf, Fxr, Fyf, Fyr)
+        Fxf, Fxr, Fyf, Fyr = self.saturateForces(Fxf, Fxr, Fyf, Fyr)
         Fd = self.dragForce(x)
 
         # Calculate x_dot components from dynamics equations
@@ -181,12 +186,12 @@ class BicycleVehicle(Agent):
         Fd = 0.5 * rho * SA * Cd * vx**2
         return Fd
 
-    def saturate_inputs(self, accel, delta_dot):
+    def saturateInputs(self, accel, delta_dot):
         accel_clipped = np.clip(accel, -self.veh_config["max_accel"], self.veh_config["max_accel"])
         delta_dot_clipped = np.clip(delta_dot, -self.veh_config["max_steer_rate"], self.veh_config["max_steer_rate"])
         return accel_clipped, delta_dot_clipped
 
-    def saturate_forces(self, Fxf, Fxr, Fyf, Fyr):
+    def saturateForces(self, Fxf, Fxr, Fyf, Fyr):
         F = np.array([Fxf, Fxr, Fyf, Fyr])
         Fmax = self.veh_config["downforce_coeff"] * self.veh_config["m"] * 9.81
         if np.linalg.norm(F) < Fmax:
@@ -200,3 +205,11 @@ class BicycleVehicle(Agent):
             if (a == 'n'):
                 exit()
             return Fxf, Fxr, Fyf, Fyr
+        
+
+    def addProcessNoise(self, state):
+        # s, ey, epsi, vx, vy, omega, delta = x
+        noisy_covar = np.eye(state.shape[0]) * [5e-2, 5e-4, 2e-7, 5e-3, 2e-5, 5e-8, 2e-8] * 3
+        noisy_state = state + np.random.multivariate_normal(np.zeros(state.shape), noisy_covar)
+        return noisy_state
+

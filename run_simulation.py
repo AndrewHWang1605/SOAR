@@ -146,11 +146,11 @@ class Simulator:
         sim_data["track_config"] = self.scene_config["track_config"]
         sim_data["sim_success"] = self.sim_success
         sim_data["collision_agents"] = np.array2string(np.array(self.collision_agents), separator=',', suppress_small=True)
-        sim_data["t"] = np.array2string(self.t_hist, separator=',', suppress_small=True)
+        # sim_data["t"] = np.array2string(self.t_hist, separator=',', suppress_small=True)
         sim_data["agent_count"] = len(self.agents)
         for agent in self.agents:
             sim_data["x" + str(agent.ID)] = np.array2string(agent.getStateHistory(), separator=',', suppress_small=True)
-            sim_data["u" + str(agent.ID)] = np.array2string(agent.getControlHistory(), separator=',', suppress_small=True)
+            # sim_data["u" + str(agent.ID)] = np.array2string(agent.getControlHistory(), separator=',', suppress_small=True)
 
         return sim_data
 
@@ -266,14 +266,18 @@ if __name__ == "__main__":
     agent3 = BicycleVehicle(veh_config, scene_config, x0_3, controller3, 3, color='g')
     sim.addAgent(agent3)
 
-    x0_4 = np.array([10, 5, 0, 2, 0, 0, 0])
-    controller4 = SafeMPCController(veh_config, scene_config, cont_config)
-    # controller4 = AdversarialMPCController(veh_config, scene_config, cont_config)
-    agent4 = BicycleVehicle(veh_config, scene_config, x0_4, controller4, 4, color='g')
-    # sim.addAgent(agent4)
+    x0_4 = np.array([950, -5, 0, 3, 0, 0, 0])
+    controller4 = AdversarialMPCController(veh_config, scene_config, cont_config)
+    agent4 = BicycleVehicle(veh_config, scene_config, x0_4, controller4, 4, color='g', add_noise=True)
+    sim.addAgent(agent4)
+
+    x0_5 = np.array([40, -5, 0, 1, 0, 0, 0])
+    controller5 = AdversarialMPCController(veh_config, scene_config, cont_config)
+    agent5 = BicycleVehicle(veh_config, scene_config, x0_5, controller5, 5, color='r')
+    # sim.addAgent(agent5)
     
-    # sim.runSim(end_plot=True, animate=True, save=True, follow_agent_IDs=[None, 4])
-    sim.runSim(end_plot=True, animate=False, save=False, follow_agent_IDs=[4])
+    sim.runSim(end_plot=True, animate=False, save=True, follow_agent_IDs=[None, 4])
+    # sim.runSim(end_plot=False, animate=True, save=True, follow_agent_IDs=[2,4])
     
 
     

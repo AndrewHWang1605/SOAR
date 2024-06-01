@@ -25,8 +25,6 @@ SOFTWARE.
 Implement data collection module
 """
 
-
-
 import numpy as np
 import csv, ast, sys
 
@@ -80,6 +78,8 @@ def runSimulation(agent_inits, control_type, end_plots=False):
             controller = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=v_ref)
         elif control_type[i] == MPCController:
             controller = MPCController(veh_config, scene_config, cont_config)
+        elif control_type[i] == AdversarialMPCController:
+            controller = MPCController(veh_config, scene_config, cont_config)
         agent_ID = i+1
         agent = BicycleVehicle(veh_config, scene_config, x0, controller, agent_ID)
         sim.addAgent(agent)
@@ -97,14 +97,14 @@ def agentRandomInit(agent_count):
 
     new_start_ref = np.random.randint(0,10000)
     for i in range(agent_count):
-        new_start = np.random.randint(new_start_ref, new_start_ref+500)
+        new_start = np.random.randint(new_start_ref, new_start_ref+200)
         while len(past_starts) > 0:
             if np.any(np.abs(np.array(past_starts) - new_start) <= 100):
-                new_start = np.random.randint(new_start_ref, new_start_ref+1000)
+                new_start = np.random.randint(new_start_ref, new_start_ref+200)
             else:
                 break
         agent_inits[i,0] = new_start
-        agent_inits[i,3] = np.random.randint(0, 10)
+        agent_inits[i,3] = np.random.randint(0, 20)
         past_starts.append(new_start)
         print("Agent", i, "initialized as:", agent_inits[i,0], agent_inits[i,3])
 
@@ -116,7 +116,8 @@ def agentRandomInit(agent_count):
 def exportSimDataToCSV(sim, dataID):
     sim_data = sim.exportSimData()
     # file_name = "train_data/CV_test_data/data" + str(dataID) + ".csv"
-    file_name = "train_data/MPC_test_data/data" + str(dataID) + ".csv"
+    # file_name = "train_data/MPC_test_data/data" + str(dataID) + ".csv"
+    file_name = "train_data/ADV_test_data/data" + str(dataID) + ".csv"
 
     with open(file_name, 'w') as csv_file:
         writer = csv.writer(csv_file)
@@ -139,7 +140,8 @@ def importSimDataFromCSV(dataID):
             maxInt = int(maxInt/10)
 
     # file_name = "train_data/CV_test_data/data" + str(dataID) + ".csv"
-    file_name = "train_data/MPC_test_data/data" + str(dataID) + ".csv"
+    # file_name = "train_data/MPC_test_data/data" + str(dataID) + ".csv"
+    file_name = "train_data/ADV_test_data/data" + str(dataID) + ".csv"
     with open(file_name) as csv_file:
         reader = csv.reader(csv_file)
         sim_data = dict(reader)
@@ -147,19 +149,18 @@ def importSimDataFromCSV(dataID):
 
     sim_success = np.array(ast.literal_eval(sim_data["sim_success"]))
     collision_agents = np.array(ast.literal_eval(sim_data["collision_agents"]))
-    times = np.array(ast.literal_eval(sim_data["t"]))
+    # times = np.array(ast.literal_eval(sim_data["t"]))
     agent_count = np.array(ast.literal_eval(sim_data["agent_count"]))
     states, controls = [], []
     for i in range(agent_count):
         states.append(np.array(ast.literal_eval(sim_data["x" + str(i+1)])))
-        controls.append(np.array(ast.literal_eval(sim_data["u" + str(i+1)])))
+        # controls.append(np.array(ast.literal_eval(sim_data["u" + str(i+1)])))
     track_config = dict(ast.literal_eval(sim_data["track_config"]))
+    
+    states = np.array(states)
+    controls = np.array(controls)
 
-    return sim_success, collision_agents, agent_count, states, controls, times, track_config
-
-
-
-
+    return sim_success, collision_agents, agent_count, track_config, states, #controls, times
 
 
 

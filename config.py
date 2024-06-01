@@ -25,8 +25,8 @@ SOFTWARE.
 Implement configs
 """
 
-from track import OvalTrack, LTrack
-from controllers import ConstantVelocityController, MPCController
+from track import *
+from controllers import *
 import casadi as ca
 import numpy as np
 
@@ -185,11 +185,13 @@ def get_controller_config(veh_config, scene_config):
 def get_GP_config():
     GP_config = {}
 
-    GP_config["sample_count"] = 5000
-    GP_config["sample_attempt_repeat"] = 20
-    GP_config["test_count"] = 100
-    GP_config["ds_bound"] = 500
-    GP_config["lookahead"] = 0.5
+    GP_config["sample_count"] = 8000           # samples when fitting/training
+    GP_config["sample_attempt_repeat"] = 20     # attempts when random sampling
+    GP_config["ds_bound"] = 250                 # distance b/w agents in s
+    GP_config["lookahead"] = 0.5                # seconds of lookahead
+
+    GP_config["test_count"] = 100               # samples when testing
+
 
     return GP_config
 
@@ -201,7 +203,8 @@ def get_data_collect_config():
 
     data_config["sim_count"] = 20
     data_config["agent_count"] = 2
-    data_config["control_type"] = [MPCController, MPCController]
+    # data_config["control_type"] = [MPCController, MPCController]
+    data_config["control_type"] = [AdversarialMPCController, AdversarialMPCController]
     data_config["rand_init"] = True
     data_config["agent_inits"] = np.array([[900, 0, 0, 0, 0, 0, 0],
                                            [810, 0, 0, 1, 0, 0, 0],
