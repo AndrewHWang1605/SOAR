@@ -83,7 +83,9 @@ class Simulator:
                     recompute_ctrl = True 
                 else:
                     recompute_ctrl = False
+                temp = agent_states.pop(agent.ID) # Remove own state to only contain opponents
                 agent.step(agent_states, recompute_control=recompute_ctrl)
+                agent_states[agent.ID] = temp
 
         self.t_hist = self.t_hist[:i+2] # Trim off extra timesteps
 
@@ -94,6 +96,8 @@ class Simulator:
                 anim = self.animateRace(follow_agent_ID=follow_ID)
                 if save:
                     anim.save("./videos/racerace_video_{}.mp4".format("agent"+str(follow_ID) if follow_ID is not None else "global"))
+                else:
+                    plt.show()
         if end_plot:
             self.plotCLStates()
             self.plotAgentTrack()
@@ -253,21 +257,26 @@ if __name__ == "__main__":
     agent1 = BicycleVehicle(veh_config, scene_config, x0_1, controller1, 1, color='b')
     # sim.addAgent(agent1)
 
-    x0_2 = np.array([-20, 0, 0, 0, 0, 0, 0])
+    x0_2 = np.array([-50, 0, 0, 10, 0, 0, 0])
     controller2 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=75)
     agent2 = BicycleVehicle(veh_config, scene_config, x0_2, controller2, 2, color='r')
-    # sim.addAgent(agent2)
+    sim.addAgent(agent2)
 
-    x0_3 = np.array([-40, -5, 0, 0, 0, 0, 0])
+    x0_3 = np.array([-50, -5, 0, 20, 0, 0, 0])
     # controller3 = ConstantVelocityController(veh_config, scene_config, cont_config)
     # controller3 = NominalOptimalController(veh_config, scene_config, cont_config, "race_lines/oval_raceline.npz")
     controller3 = MPCController(veh_config, scene_config, cont_config)
+    # controller3 = AdversarialMPCController(veh_config, scene_config, cont_config)
     agent3 = BicycleVehicle(veh_config, scene_config, x0_3, controller3, 3, color='g')
-    sim.addAgent(agent3)
+    # sim.addAgent(agent3)
+
+    x0_4 = np.array([10, -5, 0, 2, 0, 0, 0])
+    controller4 = AdversarialMPCController(veh_config, scene_config, cont_config)
+    agent4 = BicycleVehicle(veh_config, scene_config, x0_4, controller4, 4, color='g')
+    sim.addAgent(agent4)
     
     # sim.runSim(end_plot=True, animate=False, save=False, follow_agent_IDs=[None,1,2,3])
-    sim.runSim(end_plot=True, animate=False, save=False, follow_agent_IDs=[None,1,2,3])
-    # sim.animateRace()
+    sim.runSim(end_plot=False, animate=True, save=True, follow_agent_IDs=[2,4])
     
 
     

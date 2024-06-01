@@ -99,7 +99,7 @@ def get_scene_config(track_type=OVAL_TRACK):
     scene_config["track"] = track
     scene_config["track_config"] = track_config
     scene_config["dt"] = 0.001
-    scene_config["sim_time"] = 4
+    scene_config["sim_time"] = 10
 
     scene_config["anim_downsample_factor"] = 50
     scene_config["anim_window"] = 150
@@ -126,7 +126,7 @@ def get_controller_config(veh_config, scene_config):
     controller_config["T"] = 0.5 # s 
     controller_config["opt_freq"] = 40 # Hz
     controller_config["opt_k_s"] = 80
-    controller_config["opt_k_ey"] = 500
+    controller_config["opt_k_ey"] = 200
     controller_config["opt_k_epsi"] = 100
     controller_config["opt_k_vx"] = 80
     controller_config["opt_k_vy"] = 80
@@ -136,6 +136,10 @@ def get_controller_config(veh_config, scene_config):
     controller_config["opt_k_us"] = 1
     # States: s, ey, epsi, vx, vy, omega, delta
     # Inputs: accel, ddelta
+    aggressive_rating = 1 # [0,1] Tune: higher->more aggressive (0 equivalent to vanilla MPC, 1 ignores ref ey)
+    controller_config["adv_opt_k_ey"] = (1-aggressive_rating)*controller_config["opt_k_ey"]
+    controller_config["k_ey_diff"] = aggressive_rating*controller_config["opt_k_ey"] 
+    controller_config["adversary_dist"] = 50 # How far before opponent registers as close enough for adversarial action
     
     track_type = scene_config["track_config"]["track_type"]
     if track_type == OVAL_TRACK:
@@ -155,7 +159,7 @@ def get_controller_config(veh_config, scene_config):
     controller_config["states_ub"] = { "s": ca.inf,                     # m
                                        "ey": track_half_width,          # m
                                        "epsi": 10*np.pi/180,            # rad
-                                       "vx": 200,                       # m/s
+                                       "vx": 400,                       # m/s
                                        "vy": 4,                         # m/s
                                        "omega": 1,                      # rad/s
                                        "delta": max_steer }             # rad
