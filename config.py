@@ -99,7 +99,7 @@ def get_scene_config(track_type=OVAL_TRACK):
     scene_config["track"] = track
     scene_config["track_config"] = track_config
     scene_config["dt"] = 0.001
-    scene_config["sim_time"] = 10
+    scene_config["sim_time"] = 100
 
     scene_config["anim_downsample_factor"] = 50
     scene_config["anim_window"] = 150
@@ -133,7 +133,7 @@ def get_controller_config(veh_config, scene_config):
     controller_config["opt_k_omega"] = 100
     controller_config["opt_k_delta"] = 0.1
     controller_config["opt_k_ua"] = 1
-    controller_config["opt_k_us"] = 1
+    controller_config["opt_k_us"] = 10000
     # States: s, ey, epsi, vx, vy, omega, delta
     # Inputs: accel, ddelta
     aggressive_rating = 1 # [0,1] Tune: higher->more aggressive (0 equivalent to vanilla MPC, 1 ignores ref ey)

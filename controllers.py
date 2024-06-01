@@ -533,28 +533,33 @@ class MPCController(Controller):
 
         self.warm_start["X0"], self.warm_start["u0"] = self.getWarmStart(x_opt, u_opt)
 
-        # import matplotlib.pyplot as plt 
-        # titles = ["s", "ey", "epsi", "vx", "vy", "omega", "delta", "accel", "delta_dot"]
-        # plt.figure(0, figsize=(15,8))
-        # print(x_opt[:,:3])
+        # self.lookUnderTheHood(x_opt, u_opt, ref_traj)
 
-        # for i in range(7):
-        #     plt.subplot(3,3,i+1)
-        #     plt.plot(np.array(x_opt[i,:]).squeeze())
-        #     plt.plot(ref_traj[i,:])
-        #     plt.title(titles[i])
-        # for i in range(7,9):
-        #     plt.subplot(3,3,i+1)
-        #     plt.plot(u_opt[i-7,:])
-        #     plt.title(titles[i])
-        #     plt.plot(ref_traj[i,:])
-        # plt.show()
-
-        # a = input("Continue? ")
-        # if (a == 'n'):
-        #     exit()
         print("Compute Time", time.time()-t)
         return u_opt[0, 0], u_opt[1, 0]
+
+    def lookUnderTheHood(self, x_opt, u_opt, ref_traj):
+        """ Plot optimized trajectory compared to reference, for debugging """
+        import matplotlib.pyplot as plt 
+        titles = ["s", "ey", "epsi", "vx", "vy", "omega", "delta", "accel", "delta_dot"]
+        plt.figure(0, figsize=(15,8))
+        print(x_opt[:,:3])
+
+        for i in range(7):
+            plt.subplot(3,3,i+1)
+            plt.plot(np.array(x_opt[i,:]).squeeze())
+            plt.plot(ref_traj[i,:])
+            plt.title(titles[i])
+        for i in range(7,9):
+            plt.subplot(3,3,i+1)
+            plt.plot(u_opt[i-7,:])
+            plt.title(titles[i])
+            plt.plot(ref_traj[i,:])
+        plt.show()
+
+        a = input("Continue? ")
+        if (a == 'n'):
+            exit()
 
 class AdversarialMPCController(MPCController):
     def __init__(self,  veh_config, scene_config, control_config):
@@ -611,7 +616,6 @@ class AdversarialMPCController(MPCController):
 
         state_ref = np.hstack((state.reshape((STATE_DIM,1)), ref_traj[:STATE_DIM,1:]))
         P_mat = np.vstack((state_ref, curvature, oppo_ey, ref_traj[STATE_DIM:]))
-        # print(P_mat)
         return P_mat
 
     def stageCostFn(self, st, con, ref, opp=None):  
@@ -657,87 +661,15 @@ class AdversarialMPCController(MPCController):
                (final_st[1] - ref[STATE_DIM+1]).T @ k_ey_diff @ (final_st[1] - ref[STATE_DIM+1])
 
     def configureConstraints(self):
-        T = self.control_config["T"]        # Prediction horizon
+        T = self.control_config["T"]            # Prediction horizon
         freq = self.control_config["opt_freq"]  # Optimization Frequency
-        N = int(T*freq)                     # Number of discretization steps
+        N = int(T*freq)                         # Number of discretization steps
 
         lbg = ca.DM.zeros((STATE_DIM*(N+1) + (N), 1)) # N+1 dynamics constraints, up to 5 opponents (only consider s and ey)
         ubg = ca.DM.zeros((STATE_DIM*(N+1) + (N), 1))
         ubg[-(N):] = self.veh_config["downforce_coeff"] * self.veh_config["m"] * 9.81 # Max force constraint
 
         return lbg, ubg
-
-    # def computeControl(self, state, oppo_states, t):
-    #     """
-    #     Calculate next input (rear wheel commanded acceleration, derivative of steering angle) 
-    #     """
-    #     t = time.time()
-    #     if (state[3] < self.control_config["jumpstart_velo"]): # Handles weirdness at very low speeds (accelerates to small velo, then controller kicks in)
-    #         return self.control_config["input_ub"]["accel"], 0
-    #     track = self.scene_config["track"]
-    #     T = self.control_config["T"]
-    #     freq = self.control_config["opt_freq"]
-    #     dt = 1.0/freq                    
-    #     delta_t = np.arange(0, T+dt, dt)
-    #     N = int(T*freq)
-    #     t_hist, ref_traj = self.getRefTrajectory(state[0], delta_t) # s, ey, epsi, vx, vy, omega, delta, accel, ddelta
-    #     curvature = track.getCurvature(ref_traj[0,:])
-
-    #     # Initialize params (reference trajectory, curvature)
-    #     # TODO: Add opponent prediction states here
-    #     state_ref = np.hstack((state.reshape((STATE_DIM,1)), ref_traj[:STATE_DIM,1:]))
-    #     P_mat = np.vstack((state_ref, curvature, ref_traj[STATE_DIM:]))
-    #     self.solver_args['p'] = ca.DM(P_mat)
-
-    #     # TODO: Initialize warm start 
-    #     if not self.warm_start: # At first iteration, reference is our best warm start
-    #         X0 = ca.DM(ref_traj[:STATE_DIM, :])
-    #         u0 = ca.DM(ref_traj[-INPUT_DIM:, :-1])
-    #     else:
-    #         X0 = ca.DM(self.warm_start["X0"])
-    #         u0 = ca.DM(self.warm_start["u0"])
-
-    #     self.solver_args['x0'] = ca.vertcat(
-    #         ca.reshape(X0, STATE_DIM*(N+1), 1),
-    #         ca.reshape(u0, INPUT_DIM*N, 1)
-    #     )
-
-    #     sol = self.mpc_solver(
-    #         x0=self.solver_args['x0'],
-    #         lbx=self.solver_args['lbx'],
-    #         ubx=self.solver_args['ubx'],
-    #         lbg=self.solver_args['lbg'],
-    #         ubg=self.solver_args['ubg'],
-    #         p=self.solver_args['p']
-    #     )
-
-    #     x_opt = np.array(ca.reshape(sol['x'][: STATE_DIM * (N+1)], STATE_DIM, N+1))
-    #     u_opt = np.array(ca.reshape(sol['x'][STATE_DIM * (N + 1):], INPUT_DIM, N))
-
-    #     self.warm_start["X0"], self.warm_start["u0"] = self.getWarmStart(x_opt, u_opt)
-
-    #     # import matplotlib.pyplot as plt 
-    #     # titles = ["s", "ey", "epsi", "vx", "vy", "omega", "delta", "accel", "delta_dot"]
-    #     # plt.figure(0, figsize=(15,8))
-    #     # print(x_opt[:,:3])
-
-    #     # for i in range(7):
-    #     #     plt.subplot(3,3,i+1)
-    #     #     plt.plot(np.array(x_opt[i,:]).squeeze())
-    #     #     plt.plot(ref_traj[i,:])
-    #     #     plt.title(titles[i])
-    #     # for i in range(7,9):
-    #     #     plt.subplot(3,3,i+1)
-    #     #     plt.plot(u_opt[i-7,:])
-    #     #     plt.title(titles[i])
-    #     #     plt.plot(ref_traj[i,:])
-    #     # plt.show()
-
-    #     # a = input("Continue? ")
-    #     # if (a == 'n'):
-    #     #     exit()
-    #     print("Compute Time", time.time()-t)
-    #     return u_opt[0, 0], u_opt[1, 0]
 
     
 
