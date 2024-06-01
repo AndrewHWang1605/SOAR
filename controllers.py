@@ -431,7 +431,6 @@ class MPCController(Controller):
         # Calculate various forces 
         Fxf, Fxr = 0, m*accel
         Fyf, Fyr = c*alpha_f, c*alpha_r
-        # Fxf, Fxr, Fyf, Fyr = self.saturate_forces(Fxf, Fxr, Fyf, Fyr)
         Fd = 0.5 * rho * SA * Cd * vx**2
 
         # Calculate x_dot components from dynamics equations
@@ -444,9 +443,7 @@ class MPCController(Controller):
 
         # Propogate state variable forwards one timestep with Euler step
         x_dot = ca.vertcat(s_dot, ey_dot, epsi_dot, vx_dot, vy_dot, omega_dot, delta_dot)
-        # print("xdot", np.round(x_dot, 4))
         x_new = x + x_dot*dt
-        # x_new[6] = np.clip(x_new[6], -self.veh_config["max_steer"], self.veh_config["max_steer"])
         force_norm = ca.norm_2(ca.vertcat(Fxr, Fyf, Fyr)) # Assume Fxf = 0
         return x_new, force_norm
 

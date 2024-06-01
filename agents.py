@@ -127,7 +127,6 @@ class BicycleVehicle(Agent):
         Iz = self.veh_config["Iz"]
         lf = self.veh_config["lf"]
         lr = self.veh_config["lr"]
-        # print(accel, delta_dot)
         # Calculate various forces 
         Fxf, Fxr = self.longitudinalForce(accel)
         Fyf, Fyr = self.lateralForce(x)
@@ -144,7 +143,6 @@ class BicycleVehicle(Agent):
 
         # Propogate state variable forwards one timestep with Euler step
         x_dot = np.array([s_dot, ey_dot, epsi_dot, vx_dot, vy_dot, omega_dot, delta_dot])
-        # print("xdot", np.round(x_dot, 4))
         x_new = x + x_dot*dt
         x_new[6] = np.clip(x_new[6], -self.veh_config["max_steer"], self.veh_config["max_steer"])
         return x_new
@@ -169,13 +167,9 @@ class BicycleVehicle(Agent):
         lr = self.veh_config["lr"]
         eps = 1e-6 # Avoid divide by 0
 
-
         alpha_f = delta - np.arctan2((vy + lf*omega), (vx+eps))
         alpha_r = -np.arctan2((vy - lr*omega), (vx+eps))
                  
-        # print(vx, vy, omega, delta)        
-        # print("Pre-Slip Angles", vx, vy, omega, delta)
-        # print("Slip Angles [deg]", alpha_f/np.pi * 180, alpha_r/np.pi*180)
         return alpha_f, alpha_r
     
     # Frontal drag force of vehicle
@@ -202,11 +196,7 @@ class BicycleVehicle(Agent):
             print("== Exceeded max force: {}g".format(np.linalg.norm(F)/Fmax))
             print(Fxf, Fxr, Fyf, Fyr)
             # raise ValueError
-            a = input("Continue? ")
+            a = input("Continue Anyway? ")
             if (a == 'n'):
                 exit()
             return Fxf, Fxr, Fyf, Fyr
-
-            # normF = F / np.linalg.norm(F) * Fmax
-            # return normF[0], normF[1], normF[2], normF[3]
-    
