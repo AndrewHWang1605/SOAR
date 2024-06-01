@@ -79,6 +79,8 @@ class ConstantVelocityController(Controller):
         """
 
         """Unpack global config variables and current state variables"""
+        if (state[3] < self.control_config["jumpstart_velo"]): # Handles weirdness at very low speeds (accelerates to small velo, then controller kicks in)
+            return self.control_config["input_ub"]["accel"], 0
         accel, steering_rate = 0, 0
         s, ey, epsi = state[:3]
         track = self.scene_config["track"]
@@ -153,6 +155,8 @@ class NominalOptimalController(Controller):
         """
         Calculate next input (rear wheel commanded acceleration, derivative of steering angle) 
         """
+        if (state[3] < self.control_config["jumpstart_velo"]): # Handles weirdness at very low speeds (accelerates to small velo, then controller kicks in)
+            return self.control_config["input_ub"]["accel"], 0
         s, ey, epsi, vx_cl, vy_cl, w, delta = state
         total_len = self.scene_config["track"].total_len
         s = np.mod(np.mod(s, total_len) + total_len, total_len)
@@ -195,21 +199,6 @@ class MPCController(Controller):
         freq = self.control_config["opt_freq"]  # Optimization Frequency
         N = int(T*freq)                     # Number of discretization steps
 
-        # Construct state cost matrix
-        k_s = self.control_config["opt_k_s"]
-        k_ey = self.control_config["opt_k_ey"]
-        k_epsi = self.control_config["opt_k_epsi"]
-        k_vx = self.control_config["opt_k_vx"]
-        k_vy = self.control_config["opt_k_vy"]
-        k_omega = self.control_config["opt_k_omega"]
-        k_delta = self.control_config["opt_k_delta"]
-        Q = ca.diagcat(k_s, k_ey, k_epsi, k_vx, k_vy, k_omega, k_delta)
-
-        # Construct input cost matrix
-        k_ua = self.control_config["opt_k_ua"]
-        k_us = self.control_config["opt_k_us"]
-        R = ca.diagcat(k_ua, k_us)
-
         # State symbolic variables
         s_ca = ca.SX.sym('s')
         ey_ca = ca.SX.sym('ey')
@@ -236,43 +225,17 @@ class MPCController(Controller):
             ddelta_ca
         )
 
-        # Reference symbolic variables
-        s_ref_ca = ca.SX.sym('s_ref')
-        ey_ref_ca = ca.SX.sym('ey_ref')
-        epsi_ref_ca = ca.SX.sym('epsi_ref')
-        vx_ref_ca = ca.SX.sym('vx_ref')
-        vy_ref_ca = ca.SX.sym('vy_ref')
-        omega_ref_ca = ca.SX.sym('omega_ref')
-        delta_ref_ca = ca.SX.sym('delta_ref')
-        kappa_ref_ca = ca.SX.sym('kappa_ref')
-        accel_ref_ca = ca.SX.sym('accel_ref')
-        ddelta_ref_ca = ca.SX.sym('ddelta_ref')
-        reference = ca.vertcat(
-            s_ref_ca,
-            ey_ref_ca,
-            epsi_ref_ca,
-            vx_ref_ca,
-            vy_ref_ca,
-            omega_ref_ca,
-            delta_ref_ca,
-            kappa_ref_ca,
-            accel_ref_ca,
-            ddelta_ref_ca
-        )
-
         # Matrix containing all states over all timesteps + 1 [7 x N+1]
         X = ca.SX.sym('X', STATE_DIM, N+1)
 
         # Matrix containing all control inputs over all timesteps [2 x N]
         U = ca.SX.sym('U', INPUT_DIM, N)
 
-        # Matrix containing initial state, reference states/inputs, and curvature over all timesteps [10 x N]
-        # First column is initial state/curvature with zeros for inputs, rest of columns are reference state+curvature+input
-        # Column = [s, ey, epsi, vx, vy, omega, delta, kappa, accel, ddelta]
-        P = ca.SX.sym('X', STATE_DIM+INPUT_DIM+1, N+1)
+        # Initialize parameter matrix
+        P, reference = self.initPmatrix()
 
         # Define dynamics function
-        next_state, force_norm = self.casadi_dynamics(states, accel_ca, ddelta_ca, kappa_ref_ca)
+        next_state, force_norm = self.casadiDynamics(states, accel_ca, ddelta_ca, reference[STATE_DIM])
         f = ca.Function('f', [states, controls, reference], [next_state]) # Maps states, controls, reference (for curvature) to next state
         force_fun = ca.Function('force_fun', [states, controls, reference], [force_norm])
 
@@ -301,32 +264,27 @@ class MPCController(Controller):
         ubx[STATE_DIM*(N+1) + 1 : : INPUT_DIM] = self.control_config["input_ub"]["ddelta"]
 
         # Initialize constraints (g) bounds
-        MAX_NUM_OPPONENTS = 5
-        lbg = ca.DM.zeros((STATE_DIM*(N+1) + 2*MAX_NUM_OPPONENTS, 1)) # N+1 dynamics constraints, up to 5 opponents (only consider s and ey)
-        ubg = ca.DM.zeros((STATE_DIM*(N+1) + 2*MAX_NUM_OPPONENTS, 1))
-        lbg = ca.DM.zeros((STATE_DIM*(N+1) + (N), 1)) # N+1 dynamics constraints, N total force constraints, no opponents
-        ubg = ca.DM.zeros((STATE_DIM*(N+1) + (N), 1))
-        ubg[-(N):] = self.veh_config["downforce_coeff"] * self.veh_config["m"] * 9.81
-
-        # lbg = ca.DM.zeros((STATE_DIM*(N+1), 1)) # N+1 dynamics constraints, N total force constraints, no opponents
-        # ubg = ca.DM.zeros((STATE_DIM*(N+1), 1))
+        lbg, ubg = self.configureConstraints() # KEY: Assumes that lbg/ubg generated here matches order of g generated below
+        # MAX_NUM_OPPONENTS = 5        
+        # lbg = ca.DM.zeros((STATE_DIM*(N+1) + (N), 1)) # N+1 dynamics constraints, N total force constraints, no opponents
+        # ubg = ca.DM.zeros((STATE_DIM*(N+1) + (N), 1))
 
         # Define cost function
         final_st = X[:,-1]
-        cost_fn = (final_st - P[:STATE_DIM,-1]).T @ Q @ (final_st - P[:STATE_DIM,-1]) # Terminal constraint
+        cost_fn = self.terminalCostFn(final_st, P[:,N]) # Terminal constraint
         g = X[:,0] - P[:STATE_DIM,0] # Set initial state constraint
-        g_temp = ca.DM()
+        g_maxforce = ca.DM()
+        # g_custom = ca.DM()
         for k in range(N):
             st = X[:,k]
             st_next = X[:,k+1]
             con = U[:,k]
             ref = P[:,k]
-            cost_fn += (st - P[:STATE_DIM,k]).T @ Q @ (st - P[:STATE_DIM,k]) + \
-                       (con - P[-INPUT_DIM:,k]).T @ R @ (con - P[-INPUT_DIM:,k])
+            cost_fn += self.stageCostFn(st, con, ref)
             # Define dynamics equality constraint
             g = ca.vertcat(g, st_next - f(st, con, ref))
-            g_temp = ca.vertcat(g_temp, force_fun(st, con, ref))
-        g = ca.vertcat(g, g_temp)
+            g_maxforce = ca.vertcat(g_maxforce, force_fun(st, con, ref))
+        g = ca.vertcat(g, g_maxforce)
         
         OPT_variables = ca.vertcat(
             X.reshape((-1,1)),
@@ -359,10 +317,97 @@ class MPCController(Controller):
         solver = ca.nlpsol('solver', 'ipopt', nlp_prob, opts)
 
         return solver, solver_args
-        
-        
+
+    def stageCostFn(self, st, con, ref, opp=None):  
+        """ Define stage cost for modularity """
+        # Construct state cost matrix
+        k_s = self.control_config["opt_k_s"]
+        k_ey = self.control_config["opt_k_ey"]
+        k_epsi = self.control_config["opt_k_epsi"]
+        k_vx = self.control_config["opt_k_vx"]
+        k_vy = self.control_config["opt_k_vy"]
+        k_omega = self.control_config["opt_k_omega"]
+        k_delta = self.control_config["opt_k_delta"]
+        Q = ca.diagcat(k_s, k_ey, k_epsi, k_vx, k_vy, k_omega, k_delta)
+
+        # Construct input cost matrix
+        k_ua = self.control_config["opt_k_ua"]
+        k_us = self.control_config["opt_k_us"]
+        R = ca.diagcat(k_ua, k_us)
+
+        return (st - ref[:STATE_DIM]).T @ Q @ (st - ref[:STATE_DIM]) + \
+               (con - ref[-INPUT_DIM:]).T @ R @ (con - ref[-INPUT_DIM:]) 
+
+    def terminalCostFn(self, final_st, ref, opp=None): 
+        """ Define terminal cost for modularity """ 
+        # Construct state cost matrix
+        k_s = self.control_config["opt_k_s"]
+        k_ey = self.control_config["opt_k_ey"]
+        k_epsi = self.control_config["opt_k_epsi"]
+        k_vx = self.control_config["opt_k_vx"]
+        k_vy = self.control_config["opt_k_vy"]
+        k_omega = self.control_config["opt_k_omega"]
+        k_delta = self.control_config["opt_k_delta"]
+        Q = ca.diagcat(k_s, k_ey, k_epsi, k_vx, k_vy, k_omega, k_delta)
+
+        return (final_st - ref[:STATE_DIM]).T @ Q @ (final_st - ref[:STATE_DIM])
+
+    def configureConstraints(self):
+        T = self.control_config["T"]        # Prediction horizon
+        freq = self.control_config["opt_freq"]  # Optimization Frequency
+        N = int(T*freq)                     # Number of discretization steps
+
+        lbg = ca.DM.zeros((STATE_DIM*(N+1) + (N), 1)) # N+1 dynamics constraints, up to 5 opponents (only consider s and ey)
+        ubg = ca.DM.zeros((STATE_DIM*(N+1) + (N), 1))
+        ubg[-(N):] = self.veh_config["downforce_coeff"] * self.veh_config["m"] * 9.81 # Max force constraint
+
+        return lbg, ubg
+
+    def initPmatrix(self):
+        # Matrix containing initial state, reference states/inputs, and curvature over all timesteps [10 x N]
+        # First column is initial state/curvature with zeros for inputs, rest of columns are reference state+curvature+input
+        # Column = [s, ey, epsi, vx, vy, omega, delta, kappa, accel, ddelta]
+        T = self.control_config["T"]        # Prediction horizon
+        freq = self.control_config["opt_freq"]  # Optimization Frequency
+        N = int(T*freq)                     # Number of discretization steps
+
+        # Reference symbolic variables
+        s_ref_ca = ca.SX.sym('s_ref')
+        ey_ref_ca = ca.SX.sym('ey_ref')
+        epsi_ref_ca = ca.SX.sym('epsi_ref')
+        vx_ref_ca = ca.SX.sym('vx_ref')
+        vy_ref_ca = ca.SX.sym('vy_ref')
+        omega_ref_ca = ca.SX.sym('omega_ref')
+        delta_ref_ca = ca.SX.sym('delta_ref')
+        kappa_ref_ca = ca.SX.sym('kappa_ref')
+        accel_ref_ca = ca.SX.sym('accel_ref')
+        ddelta_ref_ca = ca.SX.sym('ddelta_ref')
+        reference = ca.vertcat(
+            s_ref_ca,
+            ey_ref_ca,
+            epsi_ref_ca,
+            vx_ref_ca,
+            vy_ref_ca,
+            omega_ref_ca,
+            delta_ref_ca,
+            kappa_ref_ca,
+            accel_ref_ca,
+            ddelta_ref_ca
+        )
+
+        return ca.SX.sym('P', STATE_DIM+INPUT_DIM+1, N+1), reference
+
+    def constructPmatrix(self, state, ref_traj, oppo_states):
+        # Initialize params (reference trajectory states/inputs, curvature)
+        track = self.scene_config["track"]
+        curvature = track.getCurvature(ref_traj[0,:])
+
+        state_ref = np.hstack((state.reshape((STATE_DIM,1)), ref_traj[:STATE_DIM,1:]))
+        P_mat = np.vstack((state_ref, curvature, ref_traj[STATE_DIM:]))
+        return P_mat
+
     # Steps forward dynamics of vehicle one discrete timestep for CasADi symbolic vars
-    def casadi_dynamics(self, x, accel, delta_dot, kappa):
+    def casadiDynamics(self, x, accel, delta_dot, kappa):
         # Expands state variable and precalculates sin/cos
         s, ey, epsi, vx, vy, omega, delta = [x[i] for i in range(STATE_DIM)]
         sin_epsi, cos_epsi = ca.sin(epsi), ca.cos(epsi)
@@ -443,27 +488,22 @@ class MPCController(Controller):
 
         return warm_start_x, warm_start_u
 
-
     def computeControl(self, state, oppo_states, t):
         """
         Calculate next input (rear wheel commanded acceleration, derivative of steering angle) 
         """
         t = time.time()
-        if (state[3] < self.control_config["jumpstart_velo"]): # Handles weirdness at very low speeds (accelerates to small velo, then MPC kicks in)
+        if (state[3] < self.control_config["jumpstart_velo"]): # Handles weirdness at very low speeds (accelerates to small velo, then controller kicks in)
             return self.control_config["input_ub"]["accel"], 0
-        track = self.scene_config["track"]
         T = self.control_config["T"]
         freq = self.control_config["opt_freq"]
         dt = 1.0/freq                    
         delta_t = np.arange(0, T+dt, dt)
-        N = delta_t.shape[0]-1
+        N = int(T*freq)
         t_hist, ref_traj = self.getRefTrajectory(state[0], delta_t) # s, ey, epsi, vx, vy, omega, delta, accel, ddelta
-        curvature = track.getCurvature(ref_traj[0,:])
 
-        # Initialize params (reference trajectory, curvature)
-        # TODO: Add opponent prediction states here
-        state_ref = np.hstack((state.reshape((STATE_DIM,1)), ref_traj[:STATE_DIM,1:]))
-        P_mat = np.vstack((state_ref, curvature, ref_traj[STATE_DIM:]))
+        # Initialize params
+        P_mat = self.constructPmatrix(state, ref_traj, oppo_states)
         self.solver_args['p'] = ca.DM(P_mat)
 
         # TODO: Initialize warm start 
@@ -493,28 +533,146 @@ class MPCController(Controller):
 
         self.warm_start["X0"], self.warm_start["u0"] = self.getWarmStart(x_opt, u_opt)
 
-        # import matplotlib.pyplot as plt 
-        # titles = ["s", "ey", "epsi", "vx", "vy", "omega", "delta", "accel", "delta_dot"]
-        # plt.figure(0, figsize=(15,8))
-        # print(x_opt[:,:3])
+        # self.lookUnderTheHood(x_opt, u_opt, ref_traj)
 
-        # for i in range(7):
-        #     plt.subplot(3,3,i+1)
-        #     plt.plot(np.array(x_opt[i,:]).squeeze())
-        #     plt.plot(ref_traj[i,:])
-        #     plt.title(titles[i])
-        # for i in range(7,9):
-        #     plt.subplot(3,3,i+1)
-        #     plt.plot(u_opt[i-7,:])
-        #     plt.title(titles[i])
-        #     plt.plot(ref_traj[i,:])
-        # plt.show()
-
-        # a = input("Continue? ")
-        # if (a == 'n'):
-        #     exit()
-        # print("Compute Time", time.time()-t)
+        print("Compute Time", time.time()-t)
         return u_opt[0, 0], u_opt[1, 0]
+
+    def lookUnderTheHood(self, x_opt, u_opt, ref_traj):
+        """ Plot optimized trajectory compared to reference, for debugging """
+        import matplotlib.pyplot as plt 
+        titles = ["s", "ey", "epsi", "vx", "vy", "omega", "delta", "accel", "delta_dot"]
+        plt.figure(0, figsize=(15,8))
+        print(x_opt[:,:3])
+
+        for i in range(7):
+            plt.subplot(3,3,i+1)
+            plt.plot(np.array(x_opt[i,:]).squeeze())
+            plt.plot(ref_traj[i,:])
+            plt.title(titles[i])
+        for i in range(7,9):
+            plt.subplot(3,3,i+1)
+            plt.plot(u_opt[i-7,:])
+            plt.title(titles[i])
+            plt.plot(ref_traj[i,:])
+        plt.show()
+
+        a = input("Continue? ")
+        if (a == 'n'):
+            exit()
+
+class AdversarialMPCController(MPCController):
+    def __init__(self,  veh_config, scene_config, control_config):
+        super().__init__(veh_config, scene_config, control_config)
+
+    def initPmatrix(self):
+        # Matrix containing initial state, reference states/inputs, curvature, and nearest opponent ey position over all timesteps [11 x N+1]
+        # First column is initial state/curvature with zeros for inputs, rest of columns are reference state+curvature+input
+        # Column = [s, ey, epsi, vx, vy, omega, delta, kappa, *opponent ey*, accel, ddelta]
+        T = self.control_config["T"]        # Prediction horizon
+        freq = self.control_config["opt_freq"]  # Optimization Frequency
+        N = int(T*freq)                     # Number of discretization steps
+
+        # Reference symbolic variables
+        s_ref_ca = ca.SX.sym('s_ref')
+        ey_ref_ca = ca.SX.sym('ey_ref')
+        epsi_ref_ca = ca.SX.sym('epsi_ref')
+        vx_ref_ca = ca.SX.sym('vx_ref')
+        vy_ref_ca = ca.SX.sym('vy_ref')
+        omega_ref_ca = ca.SX.sym('omega_ref')
+        delta_ref_ca = ca.SX.sym('delta_ref')
+        kappa_ref_ca = ca.SX.sym('kappa_ref')
+        oppo_ey_ref_ca = ca.SX.sym('oppo_ey_ref')
+        accel_ref_ca = ca.SX.sym('accel_ref')
+        ddelta_ref_ca = ca.SX.sym('ddelta_ref')
+        reference = ca.vertcat(
+            s_ref_ca,
+            ey_ref_ca,
+            epsi_ref_ca,
+            vx_ref_ca,
+            vy_ref_ca,
+            omega_ref_ca,
+            delta_ref_ca,
+            kappa_ref_ca,
+            oppo_ey_ref_ca,
+            accel_ref_ca,
+            ddelta_ref_ca
+        )
+
+        return ca.SX.sym('P', STATE_DIM+INPUT_DIM+1+1, N+1), reference
+
+    def constructPmatrix(self, state, ref_traj, oppo_states):
+        # Initialize params (reference trajectory states/inputs, curvature, opponent ey)
+        track = self.scene_config["track"]
+        curvature = track.getCurvature(ref_traj[0,:])
+        min_sdist = self.control_config["adversary_dist"]
+        oppo_ey = ref_traj[1,:] # If no adversary close, this becomes another ey tracking error term (becomes equivalent to vanilla MPC)
+        for agent_ID in oppo_states:
+            opp_state = oppo_states[agent_ID]
+            opp_s, s = opp_state[0], state[0]
+            if s - opp_s > 0 and s - opp_s < min_sdist:
+                oppo_ey = opp_state[1] * np.ones((1,ref_traj.shape[1]))
+                min_sdist = s - opp_s
+
+        state_ref = np.hstack((state.reshape((STATE_DIM,1)), ref_traj[:STATE_DIM,1:]))
+        P_mat = np.vstack((state_ref, curvature, oppo_ey, ref_traj[STATE_DIM:]))
+        return P_mat
+
+    def stageCostFn(self, st, con, ref, opp=None):  
+        """ Define stage cost for modularity """
+        # Construct state cost matrix
+        k_s = self.control_config["opt_k_s"]
+        k_ey = self.control_config["adv_opt_k_ey"]
+        k_epsi = self.control_config["opt_k_epsi"]
+        k_vx = self.control_config["opt_k_vx"]
+        k_vy = self.control_config["opt_k_vy"]
+        k_omega = self.control_config["opt_k_omega"]
+        k_delta = self.control_config["opt_k_delta"]
+        Q = ca.diagcat(k_s, k_ey, k_epsi, k_vx, k_vy, k_omega, k_delta)
+
+        # Construct input cost matrix
+        k_ua = self.control_config["opt_k_ua"]
+        k_us = self.control_config["opt_k_us"]
+        R = ca.diagcat(k_ua, k_us)
+
+        # Construct adversarial behavior cost matrix (work to block cars behind)
+        k_ey_diff = self.control_config["k_ey_diff"]
+
+        return (st - ref[:STATE_DIM]).T @ Q @ (st - ref[:STATE_DIM]) + \
+               (con - ref[-INPUT_DIM:]).T @ R @ (con - ref[-INPUT_DIM:]) + \
+               (st[1] - ref[STATE_DIM+1]).T @ k_ey_diff @ (st[1] - ref[STATE_DIM+1])
+
+    def terminalCostFn(self, final_st, ref, opp=None): 
+        """ Define terminal cost for modularity """ 
+        # Construct state cost matrix
+        k_s = self.control_config["opt_k_s"]
+        k_ey = self.control_config["opt_k_ey"]
+        k_epsi = self.control_config["opt_k_epsi"]
+        k_vx = self.control_config["opt_k_vx"]
+        k_vy = self.control_config["opt_k_vy"]
+        k_omega = self.control_config["opt_k_omega"]
+        k_delta = self.control_config["opt_k_delta"]
+        Q = ca.diagcat(k_s, k_ey, k_epsi, k_vx, k_vy, k_omega, k_delta)
+
+        # Construct adversarial behavior cost matrix (work to block cars behind)
+        k_ey_diff = self.control_config["k_ey_diff"]
+
+        return (final_st - ref[:STATE_DIM]).T @ Q @ (final_st - ref[:STATE_DIM]) + \
+               (final_st[1] - ref[STATE_DIM+1]).T @ k_ey_diff @ (final_st[1] - ref[STATE_DIM+1])
+
+    def configureConstraints(self):
+        T = self.control_config["T"]            # Prediction horizon
+        freq = self.control_config["opt_freq"]  # Optimization Frequency
+        N = int(T*freq)                         # Number of discretization steps
+
+        lbg = ca.DM.zeros((STATE_DIM*(N+1) + (N), 1)) # N+1 dynamics constraints, up to 5 opponents (only consider s and ey)
+        ubg = ca.DM.zeros((STATE_DIM*(N+1) + (N), 1))
+        ubg[-(N):] = self.veh_config["downforce_coeff"] * self.veh_config["m"] * 9.81 # Max force constraint
+
+        return lbg, ubg
+
+    
+
 
 # from config import *
 # veh_config = get_vehicle_config()

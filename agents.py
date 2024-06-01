@@ -28,7 +28,7 @@ import numpy as np
 import copy
 
 class Agent:
-    def __init__(self, veh_config, scene_config, x0, controller, ID=999):
+    def __init__(self, veh_config, scene_config, x0, controller, ID=999, color='k'):
         self.veh_config = veh_config
         self.scene_config = scene_config
         self.x = x0
@@ -37,11 +37,12 @@ class Agent:
         self.current_timestep = 0
         self.last_accel = None
         self.last_ddelta = None
+        self.color = color
 
-        self.init_histories()
+        self.initHistories()
 
 
-    def init_histories(self):
+    def initHistories(self):
         sim_time = self.scene_config["sim_time"]
         self.dt = self.scene_config["dt"]
         timesteps = int(sim_time / self.dt)
@@ -51,6 +52,10 @@ class Agent:
         self.x_global_hist = np.zeros((timesteps+1, 7))
         self.x_global_hist[0,:] = np.array([self.scene_config["track"].CLtoGlobal(self.x)])
         self.u_hist = np.zeros((timesteps, 2))
+
+    # Helper function for animation
+    def assignPatch(self, patch):
+        self.patch = patch
 
     # Implement dynamics and update state one timestep later
     def step(self, oppo_states, recompute_control=False):
@@ -70,15 +75,23 @@ class Agent:
 
     def ID(self):
         return self.ID
-    
+
+    @property 
+    def halfwidth(self):
+        return self.veh_config["half_width"]
+
     @property
-    def size(self):
-        return self.veh_config["size"]
+    def lr(self):
+        return self.veh_config["lr"]
+
+    @property
+    def lf(self):
+        return self.veh_config["lf"]
 
    
 class BicycleVehicle(Agent):
-    def __init__(self, veh_config, scene_config, x0, controller, ID=999):
-        super().__init__(veh_config, scene_config, x0, controller, ID)
+    def __init__(self, veh_config, scene_config, x0, controller, ID=999, color='k'):
+        super().__init__(veh_config, scene_config, x0, controller, ID, color)
 
     """
     Implement dynamics and update state one timestep later
@@ -98,7 +111,6 @@ class BicycleVehicle(Agent):
         self.x_global_hist[self.current_timestep+1, :] = copy.deepcopy(self.x_global)
         self.u_hist[self.current_timestep, :] = np.array([accel, delta_dot])
         self.current_timestep += 1
-        # print(x_new)
         return x_new
     
     # Steps forward dynamics of vehicle one discrete timestep

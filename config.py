@@ -43,7 +43,8 @@ def get_vehicle_config():
     veh_config["Iz"] = 1800 #0.03        # kg/m^2 
     veh_config["lf"] = 2.0 #0.125       # m length forward from CoM
     veh_config["lr"] = 2.0 #0.125       # m length backward from CoM
-    veh_config["size"] = 4.1
+    veh_config["half_width"] = 1.05     # m symmetric width from CoM to each side
+    # veh_config["size"] = 4.1
     veh_config["downforce_coeff"] = 5
     # veh_config["R"] = 0.5               # m radius of tire
 
@@ -100,9 +101,10 @@ def get_scene_config(track_type=OVAL_TRACK):
     scene_config["dt"] = 0.001
     scene_config["sim_time"] = 100
 
+    scene_config["anim_downsample_factor"] = 50
+    scene_config["anim_window"] = 150
+
     return scene_config
-
-
 
 
 def get_controller_config(veh_config, scene_config):
@@ -124,25 +126,20 @@ def get_controller_config(veh_config, scene_config):
     controller_config["T"] = 0.5 # s 
     controller_config["opt_freq"] = 40 # Hz
     controller_config["opt_k_s"] = 80
-    controller_config["opt_k_ey"] = 500
+    controller_config["opt_k_ey"] = 200
     controller_config["opt_k_epsi"] = 100
     controller_config["opt_k_vx"] = 80
     controller_config["opt_k_vy"] = 80
     controller_config["opt_k_omega"] = 100
     controller_config["opt_k_delta"] = 0.1
     controller_config["opt_k_ua"] = 1
-    controller_config["opt_k_us"] = 1
-    # controller_config["opt_k_s"] = 0
-    # controller_config["opt_k_ey"] = 0
-    # controller_config["opt_k_epsi"] = 0
-    # controller_config["opt_k_vx"] = 10
-    # controller_config["opt_k_vy"] = 0
-    # controller_config["opt_k_omega"] = 0
-    # controller_config["opt_k_delta"] = 0
-    # controller_config["opt_k_ua"] = 0
-    # controller_config["opt_k_us"] = 0
+    controller_config["opt_k_us"] = 10000
     # States: s, ey, epsi, vx, vy, omega, delta
     # Inputs: accel, ddelta
+    aggressive_rating = 1 # [0,1] Tune: higher->more aggressive (0 equivalent to vanilla MPC, 1 ignores ref ey)
+    controller_config["adv_opt_k_ey"] = (1-aggressive_rating)*controller_config["opt_k_ey"]
+    controller_config["k_ey_diff"] = aggressive_rating*controller_config["opt_k_ey"] 
+    controller_config["adversary_dist"] = 50 # How far before opponent registers as close enough for adversarial action
     
     track_type = scene_config["track_config"]["track_type"]
     if track_type == OVAL_TRACK:
@@ -162,7 +159,7 @@ def get_controller_config(veh_config, scene_config):
     controller_config["states_ub"] = { "s": ca.inf,                     # m
                                        "ey": track_half_width,          # m
                                        "epsi": 10*np.pi/180,            # rad
-                                       "vx": 200,                       # m/s
+                                       "vx": 400,                       # m/s
                                        "vy": 4,                         # m/s
                                        "omega": 1,                      # rad/s
                                        "delta": max_steer }             # rad
