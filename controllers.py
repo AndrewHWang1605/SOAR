@@ -532,7 +532,7 @@ class MPCController(Controller):
 
         # self.lookUnderTheHood(x_opt, u_opt, ref_traj)
 
-        print("Compute Time", time.time()-t)
+        # print("Compute Time", time.time()-t)
         return u_opt[0, 0], u_opt[1, 0]
 
     def lookUnderTheHood(self, x_opt, u_opt, ref_traj):

@@ -24,5 +24,3 @@ SOFTWARE.
 """
 Implement various useful helper functions
 """
-
-def rk4()
