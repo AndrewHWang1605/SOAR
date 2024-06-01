@@ -266,15 +266,15 @@ if __name__ == "__main__":
     agent3 = BicycleVehicle(veh_config, scene_config, x0_3, controller3, 3, color='g')
     # sim.addAgent(agent3)
 
-    x0_4 = np.array([10, -5, 0, 3, 0, 0, 0])
+    x0_4 = np.array([950, -5, 0, 3, 0, 0, 0])
     controller4 = AdversarialMPCController(veh_config, scene_config, cont_config)
-    agent4 = BicycleVehicle(veh_config, scene_config, x0_4, controller4, 4, color='g')
+    agent4 = BicycleVehicle(veh_config, scene_config, x0_4, controller4, 4, color='g', add_noise=True)
     sim.addAgent(agent4)
 
     x0_5 = np.array([40, -5, 0, 1, 0, 0, 0])
     controller5 = AdversarialMPCController(veh_config, scene_config, cont_config)
     agent5 = BicycleVehicle(veh_config, scene_config, x0_5, controller5, 5, color='r')
-    sim.addAgent(agent5)
+    # sim.addAgent(agent5)
     
     sim.runSim(end_plot=True, animate=False, save=True, follow_agent_IDs=[None, 4])
     # sim.runSim(end_plot=False, animate=True, save=True, follow_agent_IDs=[2,4])

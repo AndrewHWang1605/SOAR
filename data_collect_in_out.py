@@ -25,8 +25,6 @@ SOFTWARE.
 Implement data collection module
 """
 
-
-
 import numpy as np
 import csv, ast, sys
 
@@ -163,10 +161,6 @@ def importSimDataFromCSV(dataID):
     controls = np.array(controls)
 
     return sim_success, collision_agents, agent_count, track_config, states, #controls, times
-
-
-
-
 
 
 

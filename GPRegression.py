@@ -61,7 +61,7 @@ class GPRegression():
         self.GP = GaussianProcessRegressor(kernel=self.kernel, n_restarts_optimizer=9)
         # self.GP = MyGPR(kernel=self.kernel, n_restarts_optimizer=9)
 
-        # np.random.seed(888)
+        np.random.seed(888)
 
 
 
@@ -130,15 +130,16 @@ class GPRegression():
 
     """Uses fitted GP to predict output for state input(s)"""
     def predict(self, ego_state, opp_states):
+        start_time = time.time()
         if len(opp_states.shape) == 1:
             agent_inputs, ds = self.stateToGPInput(ego_state, opp_states, self.track)
         else:
             agent_inputs = np.zeros((9,opp_states.shape[0]))
             for i, opp_state in enumerate(opp_states):
                 agent_inputs[i], ds = self.stateToGPInput(ego_state, opp_state, self.track)
-        print(agent_inputs)
         opp_predicts, std_predicts = self.GP.predict(agent_inputs, return_std=True)
-        print(opp_predicts)
+        end_time = time.time()
+        print("Predict time:", np.round(end_time - start_time, 5))
         return opp_predicts, std_predicts
         
     
@@ -185,7 +186,7 @@ class GPRegression():
         total_counter = 0
 
         for sim in self.imported_sim_data:
-            sim_success, collision_agents, agent_count, track_config, states = sim #controls, times = sim
+            sim_success, collision_agents, agent_count, track_config, states = sim
 
             track_type = track_config["track_type"]
             if track_type == 0:
@@ -282,13 +283,14 @@ if __name__ == "__main__":
     # # gpr.importSimData()
     # gpr.trainGP()
     # # gpr.exportGP("gp_models/model_5k_500.pkl")
-    # gpr.exportGP("gp_models/model_5k_250_ADV.pkl")
+    # # gpr.exportGP("gp_models/model_5k_250_ADV.pkl")
+    # gpr.exportGP("gp_models/model_8k_250_ADV.pkl")
 
-    gpr.importSimData(sim_counts=np.arange(17,21))
-    # gpr.importSimData()
     # gpr.importGP("gp_models/model_5k_500.pkl")
     gpr.importGP("gp_models/model_5k_250_ADV.pkl")
-    gpr.testPredict(end_plot=True)
+    # gpr.importSimData()
+    # gpr.importSimData(sim_counts=np.arange(17,21))
+    # gpr.testPredict(end_plot=True)
     ego = np.array([200, -5, 0, 50, 0, 0, 0])
     opp = np.array([10, -5, 0, 60, 0, 0, 0])
     gpr.predict(ego, opp)
