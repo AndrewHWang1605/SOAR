@@ -59,18 +59,18 @@ class GPRegression():
 
         self.imported_sim_data = []
 
-        self.kernel = 1 * Matern(length_scale=1.0, length_scale_bounds=(1e-2, 1e2))
-        self.GP = GaussianProcessRegressor(kernel=self.kernel, n_restarts_optimizer=2)
+        self.kernel = 1 * Matern(length_scale=1e2, length_scale_bounds=(1e0, 1e5))
+        self.GP = GaussianProcessRegressor(kernel=self.kernel, n_restarts_optimizer=5)
         # self.GP = MyGPR(kernel=self.kernel, n_restarts_optimizer=9)
 
-        np.random.seed(1)
+        np.random.seed(888)
 
         
-    def importSimData(self):
+    def importSimData(self, sim_counts=np.arange(1,21)):
+        print("Importing sim data from csv files")
         sim_success = False
         sim_idx = 0
-        while sim_idx < 1:
-            sim_idx += 1
+        for sim_idx in sim_counts:
             imported_sim_data = importSimDataFromCSV(sim_idx)
             sim_success = imported_sim_data[0]
             if sim_success:
@@ -103,7 +103,7 @@ class GPRegression():
             self.plotPredictions(random_output, mean_prediction, std_prediction)
 
 
-    def exportGP(self, file_path='gp_models/model.pkl'):
+    def exportGP(self, file_path='gp_models/model_base_test.pkl'):
         try:
             with open(file_path, 'wb') as f:
                 pickle.dump(self.GP, f)
@@ -112,7 +112,7 @@ class GPRegression():
             print("Error occurred when exporting GP to pickle file:", file_path)
         
 
-    def importGP(self, file_path='gp_models/model.pkl'):
+    def importGP(self, file_path='gp_models/model_base_test.pkl'):
         try:
             with open(file_path, 'rb') as f:
                 self.GP = pickle.load(f)
@@ -129,16 +129,18 @@ class GPRegression():
 
     
     def plotPredictions(self, output, mean_prediction, std_prediction):
-        titles = ["ds", "ey", "epsi", "vx", "vy", "omega"]
+        titles = np.array(["ds", "ey", "epsi", "vx", "vy", "omega"])
+        elements = output.shape[1]
+        titles = titles[:elements]
         normalized_data = np.divide(mean_prediction - output, output)
         plt.figure(0, figsize=(15,8))
-        for i in range(4):
+        for i in range(elements):
             plt.subplot(2,2,i+1)
             plt.plot(normalized_data[:,i])
             plt.title(titles[i] + " normalized error")
 
         plt.figure(1, figsize=(15,8))
-        for i in range(4):
+        for i in range(elements):
             plt.subplot(2,2,i+1)
             plt.plot(output[:,i], label="Training data")
             plt.plot(mean_prediction[:,i], label="Mean prediction")
@@ -151,15 +153,14 @@ class GPRegression():
     def getSampleDataVaried(self, count):
         # GP_train_data array will have [ds, de_y, e_psi^1, v_x^1, e_y^2, e_psi^2, v_x^2, w^2, k2]
         GP_train_data = np.zeros((count, 9))
-        # GP_output_data array will have full state (7)
-        GP_output_data = np.zeros((count, 7))
+        # GP_output_data array will have ds and de_y for lookahead state
+        GP_output_data = np.zeros((count, 2))
 
         len_data = len(self.imported_sim_data)
         if len_data <= 2:
             sim_subcount = count
         else:
-            # sim_subcount = int(count/len_data)
-            sim_subcount = 2 * count/len_data
+            sim_subcount = count/3
         total_counter = 0
 
         for sim in self.imported_sim_data:
@@ -222,9 +223,11 @@ class GPRegression():
                     #     ds_p1 += track_length
                     dey_p1 = ey1_p1 - ey2_p1
 
-                    GP_output_data[total_counter] = np.array([ds_p1, dey_p1, epsi2_p1, vx2_p1, vy2_p1, omega2_p1, delta2_p1])
+                    raw_output_data = np.array([ds_p1, dey_p1, epsi2_p1, vx2_p1, vy2_p1, omega2_p1, delta2_p1])
+                    GP_output_data[total_counter] = raw_output_data[:GP_output_data.shape[1]]
 
-                    print(total_counter, np.round(ds,2), np.round(s2_p1 - s2, 2))
+                    ds2 = np.mod(np.mod(s2_p1 - s2, track_length) + track_length, track_length)
+                    print(total_counter, np.round(ds,2), np.round(ds2, 2))
                     counter += 1
                     total_counter += 1
 
@@ -260,10 +263,13 @@ if __name__ == "__main__":
     GP_config = get_GP_config()
     scene_config = get_scene_config()
     gpr = GPRegression(GP_config, scene_config)
-    gpr.importSimData()
 
+    # gpr.importSimData(sim_counts=np.arange(1,15))
     # gpr.trainGP()
-    # gpr.exportGP()
+    # # gpr.exportGP()
+    # gpr.exportGP("gp_models/model_5k_500.pkl")
 
-    gpr.importGP()
+    gpr.importSimData(sim_counts=np.arange(15,21))
+    # gpr.importGP()
+    gpr.importGP("gp_models/model_5k_500.pkl")
     gpr.testPredictGP(True)

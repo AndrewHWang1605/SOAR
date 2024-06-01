@@ -178,10 +178,10 @@ def get_controller_config(veh_config, scene_config):
 def get_GP_config():
     GP_config = {}
 
-    GP_config["sample_count"] = 2000
-    GP_config["sample_attempt_repeat"] = 10
+    GP_config["sample_count"] = 5000
+    GP_config["sample_attempt_repeat"] = 20
     GP_config["test_count"] = 100
-    GP_config["ds_bound"] = 200
+    GP_config["ds_bound"] = 500
     GP_config["lookahead"] = 0.5
 
     return GP_config
