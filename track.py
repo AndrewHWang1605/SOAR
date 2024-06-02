@@ -57,8 +57,11 @@ class Track:
         return curvature
 
     def getTrackPosition(self, s):
-        nearest_s_ind = np.argmin(np.abs(self.s - s%self.total_len))
-        track_x, track_y, track_psi = self.track_xypsi[nearest_s_ind]
+        s = np.mod(np.mod(s, self.total_len) + self.total_len, self.total_len)
+        xypsi = [0]*3
+        for i in range(3):
+            xypsi[i] = np.interp(s, self.s, self.track_xypsi[:,i])
+        track_x, track_y, track_psi = xypsi
         return track_x, track_y, track_psi
     
     def getTrackLength(self):
@@ -95,8 +98,8 @@ class Track:
                 loop_back_start = track_xypsi[i,:] + np.array([dx*np.cos(dtheta), dx*np.sin(dtheta), theta])
                 err = track_xypsi[0,:]-loop_back_start
                 err[2] = 1-np.cos(err[2])
-                # print("Track Closure Error", err)
-                # assert np.all(err < np.array([0.1, 0.1, 1-np.cos(0.1)]))
+                print("Track Closure Error", err)
+                assert np.all(err < np.array([0.1, 0.1, 1-np.cos(0.1)]))
 
         return total_len, s, track_curvature, track_xypsi
 
