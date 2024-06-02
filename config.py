@@ -187,10 +187,10 @@ def get_controller_config(veh_config, scene_config):
 def get_GP_config():
     GP_config = {}
 
-    GP_config["sample_count"] = 8000           # samples when fitting/training
-    GP_config["sample_attempt_repeat"] = 20     # attempts when random sampling
+    GP_config["sample_count"] = 5000           # samples when fitting/training
+    GP_config["sample_attempt_repeat"] = 10     # attempts when random sampling
     GP_config["ds_bound"] = 250                 # distance b/w agents in s
-    GP_config["lookahead"] = 0.5                # seconds of lookahead
+    GP_config["lookahead"] = 1.0             # seconds of lookahead
 
     GP_config["test_count"] = 100               # samples when testing
 

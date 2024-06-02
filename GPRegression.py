@@ -57,7 +57,7 @@ class GPRegression():
         self.imported_sim_data = []
 
         self.kernel = 1 * Matern(length_scale=1e2, length_scale_bounds=(1e0, 1e5))
-        self.GP = GaussianProcessRegressor(kernel=self.kernel, n_restarts_optimizer=9)
+        self.GP = GaussianProcessRegressor(kernel=self.kernel, n_restarts_optimizer=5)
         # self.GP = MyGPR(kernel=self.kernel, n_restarts_optimizer=9)
 
         np.random.seed(888)
@@ -90,6 +90,7 @@ class GPRegression():
     def importSimData(self, sim_counts=[1]):
         print("Importing sim data from csv files")
         sim_success = False
+        self.imported_sim_data = []
         sim_idx = 0
         for sim_idx in sim_counts:
             imported_sim_data = importSimDataFromCSV(sim_idx)
@@ -144,7 +145,7 @@ class GPRegression():
 
     """Plots prediction vs. outputs and normalized errors"""
     def plotPredictions(self, output, mean_prediction, std_prediction):
-        titles = np.array(["ds", "ey", "epsi", "vx", "vy", "omega"])
+        titles = np.array(["ds", "dey", "epsi", "vx", "vy", "omega"])
         elements = output.shape[1]
         titles = titles[:elements]
         normalized_data = np.divide(mean_prediction - output, output)
@@ -180,7 +181,7 @@ class GPRegression():
         if len_data <= 2:
             sim_subcount = count
         else:
-            sim_subcount = count/3
+            sim_subcount = count/len_data
         total_counter = 0
 
         for sim in self.imported_sim_data:
@@ -205,15 +206,16 @@ class GPRegression():
 
                 ego_state = ego_states[sample_idx]
                 opp_state = opp_states[sample_idx]
-                GP_train_data[total_counter], ds = self.stateToGPInput(ego_state, opp_state, track)
+                input_data, ds = self.stateToGPInput(ego_state, opp_state, track)
 
                 if abs(ds) <= self.ds_bound:
+                    GP_train_data[total_counter] = input_data
                     """Output data as oppo lookahead state with ds instead of s2"""
                     future_oppo_state = opp_states[sample_idx+self.timestep_offset]
                     output_data = self.stateToGPOutput(ego_state, future_oppo_state, track)
-                    GP_output_data[total_counter] = output_data[0,:GP_output_data.shape[1]]
+                    GP_output_data[total_counter] = output_data
 
-                    print(total_counter, GP_output_data[total_counter])
+                    print(total_counter, np.round(GP_train_data[total_counter][:2],2), np.round(GP_output_data[total_counter],2))
                     counter += 1
                     total_counter += 1
 
@@ -233,10 +235,8 @@ class GPRegression():
         s1, ey1, epsi1, vx1, vy1, omega1, delta1 = ego_state
         s2, ey2, epsi2, vx2, vy2, omega2, delta2 = opp_state
         
-        s1 = np.mod(np.mod(s1, track_length) + track_length, track_length)
-        s2 = np.mod(np.mod(s2, track_length) + track_length, track_length)
-        ds = s1 - s2 
-        ds = np.mod(np.mod(ds, track_length) + track_length, track_length)
+
+        ds = self.getDiffS(s1, s2, track_length)
         dey = ey1 - ey2
         kappa2 = track.getCurvature(s2)
 
@@ -251,16 +251,29 @@ class GPRegression():
         s1, ey1, epsi1, vx1, vy1, omega1, delta1 = ego_state
         s2, ey2, epsi2, vx2, vy2, omega2, delta2 = future_opp_state
         
-        s1 = np.mod(np.mod(s1, track_length) + track_length, track_length)
-        s2 = np.mod(np.mod(s2, track_length) + track_length, track_length)
-        ds = s1 - s2 
-        ds = np.mod(np.mod(ds, track_length) + track_length, track_length)
+        ds = self.getDiffS(s1, s2, track_length)
         dey = ey1 - ey2
 
         predict_output = np.array([ds, dey])
         predict_output = np.reshape(predict_output, (1, predict_output.shape[0]))
         return predict_output
         
+
+    def getDiffS(self, s1, s2, track_length):
+        s1 = self.normalizeS(s1, track_length)
+        s2 = self.normalizeS(s2, track_length)
+
+        if (s1-s2 > 0.5*track_length):
+            return (s1-track_length) - s2
+        elif (s1-s2 < -0.5*track_length):
+            return s1 - (s2-track_length)
+        else:
+            return s1-s2
+
+    def normalizeS(self, s, track_length):
+        return np.mod(np.mod(s, track_length) + track_length, track_length)
+    
+    
 
 
 
@@ -331,17 +344,12 @@ if __name__ == "__main__":
     scene_config = get_scene_config()
     gpr = GPRegression(GP_config, scene_config)
 
-    # gpr.importSimData(sim_counts=np.arange(1,15))
-    # # gpr.importSimData()
+    # gpr.importSimData(sim_counts=np.arange(5,21))
     # gpr.trainGP()
-    # # gpr.exportGP("gp_models/model_5k_500.pkl")
-    # # gpr.exportGP("gp_models/model_5k_250_ADV.pkl")
-    # gpr.exportGP("gp_models/model_8k_250_ADV.pkl")
+    # gpr.exportGP("gp_models/new/model_5k_250_1-0_ADV.pkl")
 
-    # gpr.importGP("gp_models/model_5k_500.pkl")
-    gpr.importGP("gp_models/model_5k_250_ADV.pkl")
-    # gpr.importSimData()
-    gpr.importSimData(sim_counts=np.arange(17,21))
+    gpr.importGP("gp_models/new/model_5k_250_1-0_ADV.pkl")
+    gpr.importSimData(sim_counts=np.arange(1,8))
     gpr.testPredict(end_plot=True)
     # ego = np.array([200, -5, 0, 50, 0, 0, 0])
     # opp = np.array([10, -5, 0, 60, 0, 0, 0])
