@@ -26,7 +26,7 @@ Implement configs
 """
 
 from track import *
-from controllers import *
+# from controllers import *
 import casadi as ca
 import numpy as np
 
@@ -177,7 +177,9 @@ def get_controller_config(veh_config, scene_config):
     controller_config["input_ub"] = {  "accel": veh_config["max_accel"],
                                        "ddelta": veh_config["max_steer_rate"] }  
 
-    controller_config["jumpstart_velo"] = 0.5 #m/s                                 
+    controller_config["jumpstart_velo"] = 0.5 #m/s     
+
+    controller_config["GP_config"] = get_GP_config()                            
 
     return controller_config
 
@@ -205,8 +207,6 @@ def get_data_collect_config():
 
     data_config["sim_count"] = 20
     data_config["agent_count"] = 2
-    # data_config["control_type"] = [MPCController, MPCController]
-    data_config["control_type"] = [AdversarialMPCController, AdversarialMPCController]
     data_config["rand_init"] = True
     data_config["agent_inits"] = np.array([[900, 0, 0, 0, 0, 0, 0],
                                            [810, 0, 0, 1, 0, 0, 0],
