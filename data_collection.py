@@ -140,8 +140,8 @@ def agentRandomInit(agent_count):
 
 def agentUniformInit(agent_count):
 
-    start_s = np.arange(800,5000,200)
-    start_vel = np.arange(5,80,5)
+    start_s = np.arange(800,6000,200)
+    start_vel = np.arange(5,105,5)
     sim_count = len(start_s)*len(start_vel)
 
     agent_inits = np.zeros((sim_count, agent_count, 7))
@@ -150,7 +150,7 @@ def agentUniformInit(agent_count):
     for i, s in enumerate(start_s):
         for j, v in enumerate(start_vel):
             agent_inits[counter, 0, 0] = s
-            agent_inits[counter, 0, 1] = np.random.randint(-5, 5)
+            agent_inits[counter, 0, 1] = np.random.randint(-15, 15)
             agent_inits[counter, 0, 3] = v
             past_starts = [s]
             for k in range(1,agent_count):
@@ -161,7 +161,7 @@ def agentUniformInit(agent_count):
                     else:
                         break
                 agent_inits[counter, k, 0] = new_start
-                agent_inits[counter, k, 1] = np.random.randint(-5, 5)
+                agent_inits[counter, k, 1] = np.random.randint(-15, 15)
                 agent_inits[counter, k, 3] = v
                 past_starts.append(new_start)
             counter += 1

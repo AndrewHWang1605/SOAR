@@ -344,13 +344,15 @@ if __name__ == "__main__":
     scene_config = get_scene_config()
     gpr = GPRegression(GP_config, scene_config)
 
-    gpr.importSimData()
-    # gpr.importSimData(sim_counts=np.arange(4,21))
+    # gpr.importSimData()
+    gpr.importSimData(sim_counts=np.arange(1,3))
     gpr.trainGP()
     # gpr.exportGP("gp_models/new/model_5k_300_3-0_ADV.pkl")
 
     # gpr.importGP("gp_models/new/model_5k_300_3-0_ADV.pkl")
     # gpr.importSimData(sim_counts=np.arange(1,6))
+    gpr.importSimData(sim_counts=[4])
+
     gpr.testPredict(end_plot=True)
     # ego = np.array([200, -5, 0, 50, 0, 0, 0])
     # opp = np.array([10, -5, 0, 60, 0, 0, 0])
