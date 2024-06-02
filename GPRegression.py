@@ -25,7 +25,7 @@ SOFTWARE.
 Implement Gaussian process module
 """
 
-import copy, time, pickle
+import csv, ast, sys, time, pickle
 import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
@@ -35,7 +35,6 @@ from sklearn.utils import shuffle
 from sklearn.utils.optimize import _check_optimize_result
 
 from track import OvalTrack, LTrack
-from data_collect_in_out import importSimDataFromCSV
 from config import *
 
 
@@ -102,7 +101,6 @@ class GPRegression():
                 print("Skipped collision sim:", sim_idx)
 
 
-
     """Trains GP by fitting input/outputs from inputted sim data"""
     def trainGP(self):
         self.train_data, self.output_data = self.getSampleDataVaried(self.sample_count)
@@ -137,10 +135,10 @@ class GPRegression():
             agent_inputs = np.zeros((9,opp_states.shape[0]))
             for i, opp_state in enumerate(opp_states):
                 agent_inputs[i], ds = self.stateToGPInput(ego_state, opp_state, self.track)
-        opp_predicts, std_predicts = self.GP.predict(agent_inputs, return_std=True)
+        gp_predicts, std_predicts = self.GP.predict(agent_inputs, return_std=True)
         end_time = time.time()
         print("Predict time:", np.round(end_time - start_time, 5))
-        return opp_predicts, std_predicts
+        return gp_predicts #, std_predicts
         
     
 
@@ -210,14 +208,9 @@ class GPRegression():
                 GP_train_data[total_counter], ds = self.stateToGPInput(ego_state, opp_state, track)
 
                 if abs(ds) <= self.ds_bound:
-                    """Output data as oppo lookahead state"""
-                    # opp_state_p1 = opp_states[sample_idx+self.timestep_offset]
-                    # GP_output_data[total_counter] = copy.deepcopy(opp_state_p1)
-
                     """Output data as oppo lookahead state with ds instead of s2"""
-                    ego_state_p1 = ego_states[sample_idx+self.timestep_offset]
-                    opp_state_p1 = opp_states[sample_idx+self.timestep_offset]
-                    output_data, ds_p1 = self.stateToGPInput(ego_state_p1, opp_state_p1, track)
+                    future_oppo_state = opp_states[sample_idx+self.timestep_offset]
+                    output_data = self.stateToGPOutput(ego_state, future_oppo_state, track)
                     GP_output_data[total_counter] = output_data[0,:GP_output_data.shape[1]]
 
                     print(total_counter, GP_output_data[total_counter])
@@ -234,7 +227,7 @@ class GPRegression():
 
 
 
-    """Helper function that returns the GP output"""
+    """Helper function that returns the GP input"""
     def stateToGPInput(self, ego_state, opp_state, track):
         track_length = track.getTrackLength()
         s1, ey1, epsi1, vx1, vy1, omega1, delta1 = ego_state
@@ -244,12 +237,29 @@ class GPRegression():
         s2 = np.mod(np.mod(s2, track_length) + track_length, track_length)
         ds = s1 - s2 
         ds = np.mod(np.mod(ds, track_length) + track_length, track_length)
-
         dey = ey1 - ey2
         kappa2 = track.getCurvature(s2)
-        predict_output = np.array([ds, dey, epsi1, vx1, ey2, epsi2, vx2, omega2, kappa2])
+
+        predict_input = np.array([ds, dey, epsi1, vx1, ey2, epsi2, vx2, omega2, kappa2])
+        predict_input = np.reshape(predict_input, (1, predict_input.shape[0]))
+        return predict_input, ds
+    
+
+    """Helper function that returns the GP output"""
+    def stateToGPOutput(self, ego_state, future_opp_state, track):
+        track_length = track.getTrackLength()
+        s1, ey1, epsi1, vx1, vy1, omega1, delta1 = ego_state
+        s2, ey2, epsi2, vx2, vy2, omega2, delta2 = future_opp_state
+        
+        s1 = np.mod(np.mod(s1, track_length) + track_length, track_length)
+        s2 = np.mod(np.mod(s2, track_length) + track_length, track_length)
+        ds = s1 - s2 
+        ds = np.mod(np.mod(ds, track_length) + track_length, track_length)
+        dey = ey1 - ey2
+
+        predict_output = np.array([ds, dey])
         predict_output = np.reshape(predict_output, (1, predict_output.shape[0]))
-        return predict_output, ds
+        return predict_output
         
 
 
@@ -270,6 +280,48 @@ class MyGPR(GaussianProcessRegressor):
         else:
             raise ValueError("Unknown optimizer %s." % self.optimizer)
         return theta_opt, func_min
+    
+
+
+
+"""Imports a sim's data from a csv file"""
+def importSimDataFromCSV(dataID):
+    
+    # Decrease the maxInt value by factor 10 if OverflowError for dict import
+    maxInt = sys.maxsize
+    while True:
+        try:
+            csv.field_size_limit(maxInt)
+            break
+        except OverflowError:
+            maxInt = int(maxInt/10)
+
+    # file_name = "train_data/CV_test_data/data" + str(dataID) + ".csv"
+    # file_name = "train_data/MPC_test_data/data" + str(dataID) + ".csv"
+    file_name = "train_data/ADV_test_data/data" + str(dataID) + ".csv"
+    with open(file_name) as csv_file:
+        reader = csv.reader(csv_file)
+        sim_data = dict(reader)
+    csv_file.close()
+
+    sim_success = np.array(ast.literal_eval(sim_data["sim_success"]))
+    collision_agents = np.array(ast.literal_eval(sim_data["collision_agents"]))
+    # times = np.array(ast.literal_eval(sim_data["t"]))
+    agent_count = np.array(ast.literal_eval(sim_data["agent_count"]))
+    states, controls = [], []
+    for i in range(agent_count):
+        states.append(np.array(ast.literal_eval(sim_data["x" + str(i+1)])))
+        # controls.append(np.array(ast.literal_eval(sim_data["u" + str(i+1)])))
+    track_config = dict(ast.literal_eval(sim_data["track_config"]))
+    
+    states = np.array(states)
+    controls = np.array(controls)
+
+    return sim_success, collision_agents, agent_count, track_config, states, #controls, times
+
+
+
+
 
 
 
@@ -289,11 +341,11 @@ if __name__ == "__main__":
     # gpr.importGP("gp_models/model_5k_500.pkl")
     gpr.importGP("gp_models/model_5k_250_ADV.pkl")
     # gpr.importSimData()
-    # gpr.importSimData(sim_counts=np.arange(17,21))
-    # gpr.testPredict(end_plot=True)
-    ego = np.array([200, -5, 0, 50, 0, 0, 0])
-    opp = np.array([10, -5, 0, 60, 0, 0, 0])
-    gpr.predict(ego, opp)
+    gpr.importSimData(sim_counts=np.arange(17,21))
+    gpr.testPredict(end_plot=True)
+    # ego = np.array([200, -5, 0, 50, 0, 0, 0])
+    # opp = np.array([10, -5, 0, 60, 0, 0, 0])
+    # gpr.predict(ego, opp)
 
 
 

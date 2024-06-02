@@ -26,7 +26,9 @@ Implement various controllers
 """
 import numpy as np
 import casadi as ca
-import time
+import time, copy
+
+from GPRegression import GPRegression
 
 STATE_DIM = 7
 INPUT_DIM = 2
@@ -677,6 +679,10 @@ class AdversarialMPCController(MPCController):
 class SafeMPCController(MPCController):
     def __init__(self,  veh_config, scene_config, control_config):
         super().__init__(veh_config, scene_config, control_config)
+        self.GP_config = control_config["GP_config"]
+        self.gpr = GPRegression(self.GP_config, self.scene_config)
+        self.gpr.importGP("gp_models/model_5k_250_ADV.pkl")
+
 
     def initPmatrix(self):
         """
@@ -798,7 +804,12 @@ class SafeMPCController(MPCController):
 
 
     def inferIntentGP(self, state, opp_state):
-        return opp_state # TODO: Placeholder
+        gp_predicts = self.gpr.predict(state, opp_state)
+        ds, dey = gp_predicts[:2] # where ds and dey are both from (state - future_opp_state)
+        future_opp_state = np.zeros(opp_state.shape)
+        future_opp_state[:2] = state[:2] - gp_predicts[:2]
+        future_opp_state[2:] = opp_state[2:]
+        return future_opp_state
 
     # def stageCostFn(self, st, con, ref, opp=None):  
     #     """ Define stage cost for modularity (adds cost term to block nearest opponent behind) """

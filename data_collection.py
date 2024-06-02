@@ -37,12 +37,12 @@ from controllers import *
 
 
 """Runs simulations and generates data, exporting to csv files"""
-def generateData(data_config, end_plots=False):
+def generateData(data_config, control_type, end_plots=False):
     sim_count = data_config["sim_count"]
     agent_count = data_config["agent_count"]
-    control_type = data_config["control_type"]
     rand_init = data_config["rand_init"]
     agent_inits = data_config["agent_inits"]
+    control_type = control_type
 
     sims = []
 
@@ -127,46 +127,10 @@ def exportSimDataToCSV(sim, dataID):
 
 
 
-"""Imports a sim's data from a csv file"""
-def importSimDataFromCSV(dataID):
-    
-    # Decrease the maxInt value by factor 10 if OverflowError for dict import
-    maxInt = sys.maxsize
-    while True:
-        try:
-            csv.field_size_limit(maxInt)
-            break
-        except OverflowError:
-            maxInt = int(maxInt/10)
-
-    # file_name = "train_data/CV_test_data/data" + str(dataID) + ".csv"
-    # file_name = "train_data/MPC_test_data/data" + str(dataID) + ".csv"
-    file_name = "train_data/ADV_test_data/data" + str(dataID) + ".csv"
-    with open(file_name) as csv_file:
-        reader = csv.reader(csv_file)
-        sim_data = dict(reader)
-    csv_file.close()
-
-    sim_success = np.array(ast.literal_eval(sim_data["sim_success"]))
-    collision_agents = np.array(ast.literal_eval(sim_data["collision_agents"]))
-    # times = np.array(ast.literal_eval(sim_data["t"]))
-    agent_count = np.array(ast.literal_eval(sim_data["agent_count"]))
-    states, controls = [], []
-    for i in range(agent_count):
-        states.append(np.array(ast.literal_eval(sim_data["x" + str(i+1)])))
-        # controls.append(np.array(ast.literal_eval(sim_data["u" + str(i+1)])))
-    track_config = dict(ast.literal_eval(sim_data["track_config"]))
-    
-    states = np.array(states)
-    controls = np.array(controls)
-
-    return sim_success, collision_agents, agent_count, track_config, states, #controls, times
-
-
-
 if __name__ == "__main__":
 
     data_config = get_data_collect_config()
+    control_type = [AdversarialMPCController, AdversarialMPCController]
     generateData(data_config, end_plots=False)
 
 
