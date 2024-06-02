@@ -240,8 +240,9 @@ class GPRegression():
         s1, ey1, epsi1, vx1, vy1, omega1, delta1 = ego_state
         s2, ey2, epsi2, vx2, vy2, omega2, delta2 = opp_state
         
-        s1 = np.mod(np.mod(s1, track_length) + track_length, track_length)
-        s2 = np.mod(np.mod(s2, track_length) + track_length, track_length)
+        s1 = track.normalizeS(s1)
+        s2 = track.normalizeS(s2)
+        # TODO: Check this to use the signedSDist helper function under track
         ds = s1 - s2 
         ds = np.mod(np.mod(ds, track_length) + track_length, track_length)
 
