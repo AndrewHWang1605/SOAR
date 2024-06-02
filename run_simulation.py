@@ -94,7 +94,9 @@ class Simulator:
             for follow_ID in follow_agent_IDs:
                 anim = self.animateRace(follow_agent_ID=follow_ID)
                 if save:
-                    anim.save("./videos/racerace_video_{}.mp4".format("agent"+str(follow_ID) if follow_ID is not None else "global"))
+                    writergif = animation.PillowWriter(fps=30)
+                    anim.save('filename.gif',writer=writergif)
+                    # anim.save("./videos/racerace_video_{}.mp4".format("agent"+str(follow_ID) if follow_ID is not None else "global"))
                 else:
                     plt.show()
         if end_plot:

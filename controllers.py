@@ -809,14 +809,16 @@ class SafeMPCController(MPCController):
 
 
     def inferIntentGP(self, state, opp_state):
-        vx = opp_state[3]
-        return opp_state + np.array([vx*self.control_config["T"]+0.5*0*9,0,0,0,0,0,0]) # TODO: Placeholder
-        # gp_predicts = self.gpr.predict(state, opp_state)
-        # ds, dey = gp_predicts[:2] # where ds and dey are both from (state - future_opp_state)
-        # future_opp_state = np.zeros(opp_state.shape)
-        # future_opp_state[:2] = state[:2] - gp_predicts[:2]
-        # future_opp_state[2:] = opp_state[2:]
-        # return future_opp_state
+        # vx = opp_state[3]
+        # return opp_state + np.array([vx*self.control_config["T"]+0.5*0*9,0,0,0,0,0,0]) # TODO: Placeholder
+        
+        gp_predicts = self.gpr.predict(state, opp_state)
+        ds, dey = gp_predicts[0,:2] # where ds and dey are both from (state - future_opp_state)
+        future_opp_state = np.zeros(opp_state.shape)
+        future_opp_state[:2] = state[:2] - gp_predicts[:2]
+        future_opp_state[2:] = opp_state[2:]
+        return future_opp_state
+
 
 if __name__ == "__main__":
     from config import *

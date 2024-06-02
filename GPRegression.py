@@ -311,7 +311,7 @@ def importSimDataFromCSV(dataID):
 
     # file_name = "train_data/CV_test_data/data" + str(dataID) + ".csv"
     # file_name = "train_data/MPC_test_data/data" + str(dataID) + ".csv"
-    file_name = "train_data/ADV_test_data/data" + str(dataID) + ".csv"
+    file_name = "train_data/ADV_test2_data/data" + str(dataID) + ".csv"
     with open(file_name) as csv_file:
         reader = csv.reader(csv_file)
         sim_data = dict(reader)
@@ -344,12 +344,13 @@ if __name__ == "__main__":
     scene_config = get_scene_config()
     gpr = GPRegression(GP_config, scene_config)
 
-    # gpr.importSimData(sim_counts=np.arange(5,21))
-    # gpr.trainGP()
-    # gpr.exportGP("gp_models/new/model_5k_250_1-0_ADV.pkl")
+    gpr.importSimData()
+    # gpr.importSimData(sim_counts=np.arange(4,21))
+    gpr.trainGP()
+    # gpr.exportGP("gp_models/new/model_5k_300_3-0_ADV.pkl")
 
-    gpr.importGP("gp_models/new/model_5k_250_1-0_ADV.pkl")
-    gpr.importSimData(sim_counts=np.arange(1,8))
+    # gpr.importGP("gp_models/new/model_5k_300_3-0_ADV.pkl")
+    # gpr.importSimData(sim_counts=np.arange(1,6))
     gpr.testPredict(end_plot=True)
     # ego = np.array([200, -5, 0, 50, 0, 0, 0])
     # opp = np.array([10, -5, 0, 60, 0, 0, 0])
