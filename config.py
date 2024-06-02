@@ -99,7 +99,7 @@ def get_scene_config(track_type=OVAL_TRACK):
     scene_config["track"] = track
     scene_config["track_config"] = track_config
     scene_config["dt"] = 0.001
-    scene_config["sim_time"] = 4
+    scene_config["sim_time"] = 10
 
     scene_config["anim_downsample_factor"] = 50
     scene_config["anim_window"] = 150
@@ -123,7 +123,7 @@ def get_controller_config(veh_config, scene_config):
     controller_config["pid_ctrl_freq"] = 100 #Hz
 
     # MPC 
-    controller_config["T"] = 0.5 # s 
+    controller_config["T"] = 3.0 #0.5 # s 
     controller_config["opt_freq"] = 40 # Hz
     controller_config["opt_k_s"] = 80
     controller_config["opt_k_ey"] = 200
@@ -134,6 +134,8 @@ def get_controller_config(veh_config, scene_config):
     controller_config["opt_k_delta"] = 0.1
     controller_config["opt_k_ua"] = 1
     controller_config["opt_k_us"] = 10000
+    controller_config["opt_k_ddelta"] = 1000 # Try to quash overly oscillatory ddelta command
+
     # States: s, ey, epsi, vx, vy, omega, delta
     # Inputs: accel, ddelta
 
@@ -145,7 +147,7 @@ def get_controller_config(veh_config, scene_config):
     
     # Safe variant
     controller_config["safe_opt_max_num_opponents"] = 5
-    controller_config["safe_opt_buffer"] = 2                # m, distance away in both s and ey from opponents
+    controller_config["safe_opt_buffer"] = 1                # m, distance away in both s and ey from opponents
     controller_config["safe_opt_max_opp_dist"] = 200        # m, distance away before safely planning for opponent
 
     track_type = scene_config["track_config"]["track_type"]
