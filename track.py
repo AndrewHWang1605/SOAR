@@ -52,17 +52,32 @@ class Track:
         return global_state
 
     def getCurvature(self, s):
-        s = np.mod(np.mod(s, self.total_len) + self.total_len, self.total_len)
+        s = self.normalizeS(s)
         curvature = np.interp(s, self.s, self.track_curvature)
         return curvature
 
     def getTrackPosition(self, s):
-        s = np.mod(np.mod(s, self.total_len) + self.total_len, self.total_len)
+        s = self.normalizeS(s)
         xypsi = [0]*3
         for i in range(3):
             xypsi[i] = np.interp(s, self.s, self.track_xypsi[:,i])
         track_x, track_y, track_psi = xypsi
         return track_x, track_y, track_psi
+
+    def normalizeS(self, s):
+        """ Maps s to range [0, self.total_len] """
+        return np.mod(np.mod(s, self.total_len) + self.total_len, self.total_len)
+        
+    def signedSDist(self, s1, s2):
+        """ Returns signed s1-s2, but accounting for wraparound effects """
+        s1 = self.normalizeS(s1)
+        s2 = self.normalizeS(s2)
+        if (s1-s2 > 0.5*self.total_len): # s1 way ahead of s2, so wrap around and measure as behind s2
+            return (s1-self.total_len) - s2
+        elif (s1-s2 < -0.5*self.total_len): # s1 way behind s2, so wrap around and measure as ahead s2
+            return s1 - (s2-self.total_len)
+        else: # s1, s2 in same half of track
+            return s1-s2
     
     def getTrackLength(self):
         return self.total_len
@@ -160,8 +175,8 @@ if __name__ == "__main__":
     cl_state = np.array([320, -7, np.pi/4, 15, 15, 0, 0])
     glob_state = track.CLtoGlobal(cl_state)
     track_x,track_y,track_psi = track.getTrackPosition(cl_state[0])
-    print("Curvilinear State", cl_state)
-    print("Global State", glob_state)
+    # print("Curvilinear State", cl_state)
+    # print("Global State", glob_state)
 
     # track.plotTrack()    
     # plt.scatter(track_x, track_y)
@@ -172,9 +187,9 @@ if __name__ == "__main__":
     # plt.show()
 
     # Test get curvature
-    s = np.linspace(0,10000,1000)
-    plt.plot(s,track.getCurvature(s))
+    # s = np.linspace(0,10000,1000)
+    # plt.plot(s,track.getCurvature(s))
     # plt.plot(s,track.getCurvature(s%6712))
-    plt.show()
+    # plt.show()
 
 
