@@ -159,7 +159,7 @@ class NominalOptimalController(Controller):
             return self.control_config["input_ub"]["accel"], 0
         s, ey, epsi, vx_cl, vy_cl, w, delta = state
         total_len = self.scene_config["track"].total_len
-        s = np.mod(np.mod(s, total_len) + total_len, total_len)
+        s = self.scene_config["track"].normalizeS(s)
         nearest_s_ind = np.where(s >= self.s_hist)[0][-1]
         return self.accel_hist[nearest_s_ind], self.ddelta_hist[nearest_s_ind]
 
@@ -301,7 +301,7 @@ class MPCController(Controller):
         opts = {
             'ipopt': {
                 'max_iter': 2000,
-                'max_wall_time': 1, #s
+                'max_wall_time': 5, #s
                 'print_level': 0,
                 'acceptable_tol': 1e-8,
                 'acceptable_obj_change_tol': 1e-6
@@ -335,8 +335,12 @@ class MPCController(Controller):
         k_us = self.control_config["opt_k_us"]
         R = ca.diagcat(k_ua, k_us)
 
+        k_ddelta = self.control_config["opt_k_ddelta"]
+
         return (st - ref[:STATE_DIM]).T @ Q @ (st - ref[:STATE_DIM]) + \
-               (con - ref[-INPUT_DIM:]).T @ R @ (con - ref[-INPUT_DIM:]) 
+               (con - ref[-INPUT_DIM:]).T @ R @ (con - ref[-INPUT_DIM:]) + \
+               con[-1].T @ k_ddelta @ con[-1]
+               
 
     def terminalCostFn(self, final_st, ref, opp=None): 
         """ Define terminal cost (penalize deviation from terminal state in reference trajectory), 
@@ -468,9 +472,9 @@ class MPCController(Controller):
         ref_traj = np.zeros((STATE_DIM+INPUT_DIM, delta_t.shape[0]))
 
         # Find closest point on reference trajectory and corresponding time
-        total_len = self.scene_config["track"].total_len
-        s0_mult = np.floor_divide(s0, total_len) # Number of laps already completed
-        s0 = np.mod(np.mod(s0, total_len) + total_len, total_len)
+        track = self.scene_config["track"]
+        s0_mult = np.floor_divide(s0, track.total_len) # Number of laps already completed
+        s0 = track.normalizeS(s0)
         s_hist = self.race_line_mat[1,:]
         closest_t = np.interp(s0, s_hist, self.race_line_mat[0,:])
 
@@ -481,7 +485,7 @@ class MPCController(Controller):
         
         for i in range(ref_traj.shape[0]):
             ref_traj[i,:] = np.interp(t_hist, self.race_line_mat[0,:], self.race_line_mat[i+1,:])
-        ref_traj[0,:] += total_len * (t_hist_mult + s0_mult) # Add lap multiples back, so s monotonically increases
+        ref_traj[0,:] += track.total_len * (t_hist_mult + s0_mult) # Add lap multiples back, so s monotonically increases
 
         return t_hist, ref_traj
 
@@ -515,7 +519,6 @@ class MPCController(Controller):
         P_mat = self.constructPmatrix(state, ref_traj, oppo_states)
         self.solver_args['p'] = ca.DM(P_mat)
 
-        # TODO: Initialize warm start 
         if not self.warm_start: # At first iteration, reference is our best warm start
             X0 = ca.DM(ref_traj[:STATE_DIM, :])
             u0 = ca.DM(ref_traj[-INPUT_DIM:, :-1])
@@ -543,8 +546,9 @@ class MPCController(Controller):
         self.warm_start["X0"], self.warm_start["u0"] = self.getWarmStart(x_opt, u_opt)
 
         # self.lookUnderTheHood(x_opt, u_opt, ref_traj)
-
-        # print("Compute Time", time.time()-t)
+        if not self.mpc_solver.stats()["success"]:
+            print("=== FAILED:", self.mpc_solver.stats()["return_status"])
+        print("Compute Time", time.time()-t)
         return u_opt[0, 0], u_opt[1, 0]
 
     def lookUnderTheHood(self, x_opt, u_opt, ref_traj):
@@ -621,11 +625,10 @@ class AdversarialMPCController(MPCController):
         for agent_ID in oppo_states:
             opp_state = oppo_states[agent_ID]
             opp_s, s = opp_state[0], state[0]
-            # TODO: Figure out wraparound issue here
-            # ds = np.mod(np.mod(s - opp_s, track.total_len) + track.total_len, track.total_len)
-            if s - opp_s > 0 and s - opp_s < min_sdist:
+            ds = track.signedSDist(s, opp_s)
+            if ds > 0 and np.abs(ds) < min_sdist:
                 oppo_ey = opp_state[1] * np.ones((1,ref_traj.shape[1]))
-                min_sdist = s - opp_s
+                min_sdist = ds
 
         state_ref = np.hstack((state.reshape((STATE_DIM,1)), ref_traj[:STATE_DIM,1:]))
         P_mat = np.vstack((state_ref, curvature, oppo_ey, ref_traj[STATE_DIM:]))
@@ -648,11 +651,14 @@ class AdversarialMPCController(MPCController):
         k_us = self.control_config["opt_k_us"]
         R = ca.diagcat(k_ua, k_us)
 
+        k_ddelta = self.control_config["opt_k_ddelta"]
+
         # Construct adversarial behavior cost matrix (work to block cars behind)
         k_ey_diff = self.control_config["k_ey_diff"]
 
         return (st - ref[:STATE_DIM]).T @ Q @ (st - ref[:STATE_DIM]) + \
-               (con - ref[-INPUT_DIM:]).T @ R @ (con - ref[-INPUT_DIM:]) + \
+               (con - ref[-INPUT_DIM:]).T @ R @ (con - ref[-INPUT_DIM:]) +  \
+               con[-1].T @ k_ddelta @ con[-1] + \
                (st[1] - ref[STATE_DIM+1]).T @ k_ey_diff @ (st[1] - ref[STATE_DIM+1])
 
     def terminalCostFn(self, final_st, ref, opp=None): 
@@ -724,7 +730,6 @@ class SafeMPCController(MPCController):
         track = self.scene_config["track"]
         curvature = track.getCurvature(ref_traj[0,:])
 
-        # print("Current state", state)
         # Find positions of all agents close enough to consider for safety (up to max_num_opponents agents)
         max_safe_opp_dist = self.control_config["safe_opt_max_opp_dist"]
         max_num_opponents = self.control_config["safe_opt_max_num_opponents"]
@@ -734,31 +739,31 @@ class SafeMPCController(MPCController):
         # Iterate through to unpack oppo_states into a numpy array
         i = 0
         for agent_ID in oppo_states:
-            # print(agent_ID, oppo_states)
             opp_state = oppo_states[agent_ID]
             future_opp_state = self.inferIntentGP(state, opp_state)
             opp_pos[:,i] = opp_state[:2]
             opp_future_pos[:,i] = future_opp_state[:2]
             i += 1
-        # print(opp_pos)
-        # print(opp_future_pos)
-        if len(oppo_states) < max_num_opponents: # Less opponents than max, so add them all if close enough
+        if len(oppo_states) <= max_num_opponents: # Less opponents than max, so add them all if close enough
             smallInd = np.arange(0, len(oppo_states), 1)
         else: # Need to look through and find the closest max_num_opponents agents that fulfill criteria to be considered
-            smallInd = np.argpartition(future_opp_state[0,:] - state[0], max_num_opponents)[:max_num_opponents]
+            smallInd = np.argpartition(opp_future_pos[0,:] - state[0], max_num_opponents)[:max_num_opponents]
         # Loop through and add all positions if close enough
         counter = 0
         for ind in smallInd:
             opp_position = opp_pos[:, ind]
             future_opp_position = opp_future_pos[:, ind]
-            future_opp_s, s = future_opp_state[0], state[0]
-            # TODO: figure out wraparound here
-            if np.abs(future_opp_s - s) < max_safe_opp_dist:
+            curr_opp_s, future_opp_s, s = opp_position[0], future_opp_position[0], state[0]
+            print(s, curr_opp_s, future_opp_s)
+            ds_curr = track.signedSDist(s, curr_opp_s)
+            ds_future = track.signedSDist(s, future_opp_s)
+            s_window_lb = -max_safe_opp_dist
+            s_window_ub = max_safe_opp_dist
+            if np.abs(ds_curr)<max_safe_opp_dist or np.abs(ds_future)<max_safe_opp_dist or (np.sign(ds_curr) != np.sign(ds_future)):
+                # Accounts for (1) current opp state unsafe, (2) future opp state unsafe, (3) curr/future state safe, BUT crosses ds=0 in between)
                 # Add trajectory to be considered, interpolating between current and future opponent (s,ey)
-                oppo_pos_mat[2*counter:2*(counter+1),:] = np.linspace(opp_state[:2], future_opp_state[:2], ref_traj.shape[1]).reshape((2,-1))
+                oppo_pos_mat[2*counter:2*(counter+1),:] = np.linspace(opp_state[:2], future_opp_state[:2], ref_traj.shape[1]).T
                 counter += 1
-        # print(oppo_pos_mat)
-
         state_ref = np.hstack((state.reshape((STATE_DIM,1)), ref_traj[:STATE_DIM,1:]))
         P_mat = np.vstack((state_ref, curvature, oppo_pos_mat, ref_traj[STATE_DIM:]))
         return P_mat
@@ -770,12 +775,14 @@ class SafeMPCController(MPCController):
         N = int(T*freq)                         # Number of discretization steps
 
         max_num_opponents = self.control_config["safe_opt_max_num_opponents"]
-        # N+1 dynamics constraints, N force constraints, N+1 steps to stay away from max_num_opponents opponents (only consider s and ey)
-        lbg = ca.DM.zeros((STATE_DIM*(N+1) + (N) + (max_num_opponents*2)*(N+1), 1)) 
-        ubg = ca.DM.zeros((STATE_DIM*(N+1) + (N) + (max_num_opponents*2)*(N+1), 1))
+        # N+1 dynamics constraints, N force constraints, N+1 steps to stay away from max_num_opponents opponents (consider inf norm of s and ey)
+        lbg = ca.DM.zeros((STATE_DIM*(N+1) + (N) + (max_num_opponents)*(N+1), 1)) 
+        ubg = ca.DM.zeros((STATE_DIM*(N+1) + (N) + (max_num_opponents)*(N+1), 1))
         ubg[STATE_DIM*(N+1):STATE_DIM*(N+1)+(N)] = self.veh_config["downforce_coeff"] * self.veh_config["m"] * 9.81 # Max force constraint
-        lbg[STATE_DIM*(N+1)+(N):] = self.control_config["safe_opt_buffer"] # Minimum distance (in both ey and s) from other agents
+        lbg[STATE_DIM*(N+1)+(N):] = self.control_config["safe_opt_buffer"] + np.max([self.veh_config["lf"]+self.veh_config["lr"], 2*self.veh_config["half_width"]]) # Minimum distance from other agents
         ubg[STATE_DIM*(N+1)+(N):] = ca.inf
+
+        print(lbg)
 
         return lbg, ubg
 
@@ -788,8 +795,7 @@ class SafeMPCController(MPCController):
         opp_states = ref[STATE_DIM+1:-2] # Should contain max_num_opponents pairs of (s,ey)
         for i in range(self.control_config["safe_opt_max_num_opponents"]):
             opp_s, opp_ey = opp_states[2*i], opp_states[2*i+1]
-            g_custom = ca.vertcat(g_custom, ca.fabs(s - opp_s), ca.fabs(ey - opp_ey))
-        print(g_custom.shape)
+            g_custom = ca.vertcat(g_custom, ca.norm_inf(ca.vertcat(s - opp_s, ey - opp_ey)))
         return g_custom
 
     def updateTerminalCustomConstraints(self, g_custom, final_st, ref):
@@ -798,53 +804,14 @@ class SafeMPCController(MPCController):
 
 
     def inferIntentGP(self, state, opp_state):
-        return opp_state # TODO: Placeholder
+        vx = opp_state[3]
+        return opp_state + np.array([vx*self.control_config["T"]+0.5*0*9,0,0,0,0,0,0]) # TODO: Placeholder
 
-    # def stageCostFn(self, st, con, ref, opp=None):  
-    #     """ Define stage cost for modularity (adds cost term to block nearest opponent behind) """
-    #     # Construct state cost matrix
-    #     k_s = self.control_config["opt_k_s"]
-    #     k_ey = self.control_config["adv_opt_k_ey"]
-    #     k_epsi = self.control_config["opt_k_epsi"]
-    #     k_vx = self.control_config["opt_k_vx"]
-    #     k_vy = self.control_config["opt_k_vy"]
-    #     k_omega = self.control_config["opt_k_omega"]
-    #     k_delta = self.control_config["opt_k_delta"]
-    #     Q = ca.diagcat(k_s, k_ey, k_epsi, k_vx, k_vy, k_omega, k_delta)
-
-    #     # Construct input cost matrix
-    #     k_ua = self.control_config["opt_k_ua"]
-    #     k_us = self.control_config["opt_k_us"]
-    #     R = ca.diagcat(k_ua, k_us)
-
-
-    #     return (st - ref[:STATE_DIM]).T @ Q @ (st - ref[:STATE_DIM]) + \
-    #            (con - ref[-INPUT_DIM:]).T @ R @ (con - ref[-INPUT_DIM:]) + \
-    #            (st[1] - ref[STATE_DIM+1]).T @ k_ey_diff @ (st[1] - ref[STATE_DIM+1])
-
-    # def terminalCostFn(self, final_st, ref, opp=None): 
-    #     """ Define terminal cost for modularity (adds cost term to block nearest opponent behind)""" 
-    #     # Construct state cost matrix
-    #     k_s = self.control_config["opt_k_s"]
-    #     k_ey = self.control_config["opt_k_ey"]
-    #     k_epsi = self.control_config["opt_k_epsi"]
-    #     k_vx = self.control_config["opt_k_vx"]
-    #     k_vy = self.control_config["opt_k_vy"]
-    #     k_omega = self.control_config["opt_k_omega"]
-    #     k_delta = self.control_config["opt_k_delta"]
-    #     Q = ca.diagcat(k_s, k_ey, k_epsi, k_vx, k_vy, k_omega, k_delta)
-
-    #     # Construct adversarial behavior cost matrix (work to block cars behind)
-    #     k_ey_diff = self.control_config["k_ey_diff"]
-
-    #     return (final_st - ref[:STATE_DIM]).T @ Q @ (final_st - ref[:STATE_DIM]) + \
-    #            (final_st[1] - ref[STATE_DIM+1]).T @ k_ey_diff @ (final_st[1] - ref[STATE_DIM+1])
-
-
-# from config import *
-# veh_config = get_vehicle_config()
-# scene_config = get_scene_config(track_type=OVAL_TRACK)
-# cont_config = get_controller_config(veh_config, scene_config)
-# controller = MPCController(veh_config, scene_config, cont_config)
-# controller.getRefTrajectory(3.5, np.linspace(0,0,20))
-# controller.computeControl(np.array([300,0,0,0,0,0,0]), [], 0)
+if __name__ == "__main__":
+    from config import *
+    veh_config = get_vehicle_config()
+    scene_config = get_scene_config(track_type=OVAL_TRACK)
+    cont_config = get_controller_config(veh_config, scene_config)
+    controller = MPCController(veh_config, scene_config, cont_config)
+    controller.getRefTrajectory(3.5, np.linspace(0,0,20))
+    controller.computeControl(np.array([300,0,0,0,0,0,0]), [], 0)
