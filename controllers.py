@@ -687,7 +687,7 @@ class SafeMPCController(MPCController):
         super().__init__(veh_config, scene_config, control_config)
         self.GP_config = control_config["GP_config"]
         self.gpr = GPRegression(self.GP_config, self.scene_config)
-        self.gpr.importGP("gp_models/model_5k_250_ADV.pkl")
+        self.gpr.importGP("gp_models/new/model_5k_250_1-0_ADV.pkl")
 
 
     def initPmatrix(self):
