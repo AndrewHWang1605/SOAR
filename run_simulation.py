@@ -251,7 +251,7 @@ if __name__ == "__main__":
     x0_1 = np.array([250, -15, 0, 0, 0, 0, 0])
     controller1 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=0)
     agent1 = BicycleVehicle(veh_config, scene_config, x0_1, controller1, 1, color='b')
-    sim.addAgent(agent1)
+    # sim.addAgent(agent1)
 
     x0_2 = np.array([-80, 0, 0, 50, 0, 0, 0])
     controller2 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=75)
@@ -266,16 +266,16 @@ if __name__ == "__main__":
     agent3 = BicycleVehicle(veh_config, scene_config, x0_3, controller3, 3, color='g')
     # sim.addAgent(agent3)
 
-    x0_4 = np.array([0, 5, 0, 6, 0, 0, 0])
-    # controller4 = SafeMPCController(veh_config, scene_config, cont_config)
-    controller4 = MPCController(veh_config, scene_config, cont_config)
+    x0_4 = np.array([0, 0, 0, 10, 0, 0, 0])
+    controller4 = SafeMPCController(veh_config, scene_config, cont_config)
+    # controller4 = MPCController(veh_config, scene_config, cont_config)
     agent4 = BicycleVehicle(veh_config, scene_config, x0_4, controller4, 4, color='g', add_noise=False)
     sim.addAgent(agent4)
 
-    x0_5 = np.array([40, -5, 0, 1, 0, 0, 0])
+    x0_5 = np.array([50, 10, 0, 3, 0, 0, 0])
     controller5 = AdversarialMPCController(veh_config, scene_config, cont_config)
     agent5 = BicycleVehicle(veh_config, scene_config, x0_5, controller5, 5, color='r')
-    # sim.addAgent(agent5)
+    sim.addAgent(agent5)
     
     # sim.runSim(end_plot=True, animate=False, save=False, follow_agent_IDs=[None, 4])
     sim.runSim(end_plot=True, animate=True, save=True, follow_agent_IDs=[4])

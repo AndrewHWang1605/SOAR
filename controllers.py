@@ -303,7 +303,7 @@ class MPCController(Controller):
         opts = {
             'ipopt': {
                 'max_iter': 2000,
-                'max_wall_time': 5, #s
+                'max_wall_time': 1, #s
                 'print_level': 0,
                 'acceptable_tol': 1e-8,
                 'acceptable_obj_change_tol': 1e-6
@@ -760,7 +760,6 @@ class SafeMPCController(MPCController):
             opp_position = opp_pos[:, ind]
             future_opp_position = opp_future_pos[:, ind]
             curr_opp_s, future_opp_s, s = opp_position[0], future_opp_position[0], state[0]
-            print(s, curr_opp_s, future_opp_s)
             ds_curr = track.signedSDist(s, curr_opp_s)
             ds_future = track.signedSDist(s, future_opp_s)
             s_window_lb = -max_safe_opp_dist
