@@ -133,8 +133,8 @@ def get_controller_config(veh_config, scene_config):
     controller_config["opt_k_omega"] = 100
     controller_config["opt_k_delta"] = 0.1
     controller_config["opt_k_ua"] = 1
-    controller_config["opt_k_us"] = 10000
-    controller_config["opt_k_ddelta"] = 1000 # Try to quash overly oscillatory ddelta command
+    controller_config["opt_k_us"] = 1
+    controller_config["opt_k_ddelta"] = 100000 # Try to quash overly oscillatory ddelta command
 
     # States: s, ey, epsi, vx, vy, omega, delta
     # Inputs: accel, ddelta
@@ -146,8 +146,8 @@ def get_controller_config(veh_config, scene_config):
     controller_config["adversary_dist"] = 200 # How far before opponent registers as close enough for adversarial action
     
     # Safe variant
-    controller_config["safe_opt_max_num_opponents"] = 5
-    controller_config["safe_opt_buffer"] = 1                # m, distance away in both s and ey from opponents
+    controller_config["safe_opt_max_num_opponents"] = 1
+    controller_config["safe_opt_buffer"] = 2              # m, distance away in both s and ey from opponents
     controller_config["safe_opt_max_opp_dist"] = 200        # m, distance away before safely planning for opponent
 
     track_type = scene_config["track_config"]["track_type"]
@@ -176,6 +176,25 @@ def get_controller_config(veh_config, scene_config):
                                        "ddelta": -veh_config["max_steer_rate"] }
     controller_config["input_ub"] = {  "accel": veh_config["max_accel"],
                                        "ddelta": veh_config["max_steer_rate"] }  
+
+    controller_config["slow_states_lb"] = { "s": 0,                          # m
+                                            "ey": -track_half_width,         # m
+                                            "epsi": -10*np.pi/180,           # rad
+                                            "vx": 0,                         # m/s
+                                            "vy": -4,                        # m/s
+                                            "omega": -1,                     # rad/s
+                                            "delta": -max_steer }            # rad
+    controller_config["slow_states_ub"] = { "s": ca.inf,                     # m
+                                            "ey": track_half_width,          # m
+                                            "epsi": 10*np.pi/180,            # rad
+                                            "vx": 400,                        # m/s
+                                            "vy": 4,                         # m/s
+                                            "omega": 1,                      # rad/s
+                                            "delta": max_steer }             # rad
+    controller_config["slow_input_lb"] = {  "accel": -veh_config["max_accel"],
+                                            "ddelta": -veh_config["max_steer_rate"] }
+    controller_config["slow_input_ub"] = {  "accel": 0.75*veh_config["max_accel"],
+                                            "ddelta": veh_config["max_steer_rate"] }  
 
     controller_config["jumpstart_velo"] = 0.5 #m/s     
 
