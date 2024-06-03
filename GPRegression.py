@@ -56,11 +56,11 @@ class GPRegression():
 
         self.imported_sim_data = []
 
-        self.kernel = 1 * Matern(length_scale=1e2, length_scale_bounds=(1e0, 1e5))
+        self.kernel = 1 * Matern(length_scale=1e2, length_scale_bounds=(1e1, 1e6))
         self.GP = GaussianProcessRegressor(kernel=self.kernel, n_restarts_optimizer=5)
         # self.GP = MyGPR(kernel=self.kernel, n_restarts_optimizer=9)
 
-        np.random.seed(888)
+        # np.random.seed(888)
 
 
 
@@ -87,13 +87,13 @@ class GPRegression():
 
 
     """Imports sim data from filepath, can select multiple sims"""
-    def importSimData(self, sim_counts=[1]):
+    def importSimData(self, file_path, sim_counts=[1]):
         print("Importing sim data from csv files")
         sim_success = False
         self.imported_sim_data = []
         sim_idx = 0
         for sim_idx in sim_counts:
-            imported_sim_data = importSimDataFromCSV(sim_idx)
+            imported_sim_data = importSimDataFromCSV(sim_idx, file_path)
             sim_success = imported_sim_data[0]
             if sim_success:
                 self.imported_sim_data.append(imported_sim_data)
@@ -138,7 +138,7 @@ class GPRegression():
                 agent_inputs[i], ds = self.stateToGPInput(ego_state, opp_state, self.track)
         gp_predicts, std_predicts = self.GP.predict(agent_inputs, return_std=True)
         end_time = time.time()
-        print("Predict time:", np.round(end_time - start_time, 5))
+        # print("Predict time:", np.round(end_time - start_time, 5))
         return gp_predicts #, std_predicts
         
     
@@ -298,7 +298,7 @@ class MyGPR(GaussianProcessRegressor):
 
 
 """Imports a sim's data from a csv file"""
-def importSimDataFromCSV(dataID):
+def importSimDataFromCSV(dataID, file_path):
     
     # Decrease the maxInt value by factor 10 if OverflowError for dict import
     maxInt = sys.maxsize
@@ -309,9 +309,7 @@ def importSimDataFromCSV(dataID):
         except OverflowError:
             maxInt = int(maxInt/10)
 
-    # file_name = "train_data/CV_test_data/data" + str(dataID) + ".csv"
-    # file_name = "train_data/MPC_test_data/data" + str(dataID) + ".csv"
-    file_name = "train_data/ADV_test_data/data" + str(dataID) + ".csv"
+    file_name = file_path + "/data" + str(dataID) + ".csv"
     with open(file_name) as csv_file:
         reader = csv.reader(csv_file)
         sim_data = dict(reader)
@@ -344,17 +342,21 @@ if __name__ == "__main__":
     scene_config = get_scene_config()
     gpr = GPRegression(GP_config, scene_config)
 
-    # gpr.importSimData(sim_counts=np.arange(5,21))
-    # gpr.trainGP()
-    # gpr.exportGP("gp_models/new/model_5k_250_1-0_ADV.pkl")
+    sim_counts = np.arange(1,121)
+    file_path = "train_data/ADV_test2_data"
+    gpr.importSimData(file_path, sim_counts)
+    gpr.trainGP()
+    gpr.exportGP("gp_models/new/model_5k_110_2-0_ADV.pkl")
 
-    gpr.importGP("gp_models/new/model_5k_250_1-0_ADV.pkl")
-    gpr.importSimData(sim_counts=np.arange(1,8))
-    gpr.testPredict(end_plot=True)
-    # ego = np.array([200, -5, 0, 50, 0, 0, 0])
-    # opp = np.array([10, -5, 0, 60, 0, 0, 0])
-    # gpr.predict(ego, opp)
-
+    # gpr.importGP("gp_models/new/model_1k_200_1-5_ADV_straight.pkl")
+    # sim_counts = np.arange(11,20)
+    # file_path = "train_data/ADV_test_data"
+    # gpr.importSimData(file_path, sim_counts)
+    # gpr.testPredict(end_plot=True)
+    ego = np.array([0.25, 0, 0, 10, 0, 0, 0])
+    opp = np.array([50, 10, 0, 10, 0, 0, 0])
+    prediction = gpr.predict(ego, opp)
+    print(prediction)
 
 
     """GP setup code to create class instance and import GP object"""

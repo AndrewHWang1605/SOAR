@@ -99,7 +99,7 @@ def get_scene_config(track_type=OVAL_TRACK):
     scene_config["track"] = track
     scene_config["track_config"] = track_config
     scene_config["dt"] = 0.001
-    scene_config["sim_time"] = 10
+    scene_config["sim_time"] = 20
 
     scene_config["anim_downsample_factor"] = 50
     scene_config["anim_window"] = 150
@@ -209,12 +209,11 @@ def get_GP_config():
     GP_config = {}
 
     GP_config["sample_count"] = 5000           # samples when fitting/training
-    GP_config["sample_attempt_repeat"] = 10     # attempts when random sampling
-    GP_config["ds_bound"] = 250                 # distance b/w agents in s
-    GP_config["lookahead"] = 1.0             # seconds of lookahead
+    GP_config["sample_attempt_repeat"] = 15     # attempts when random sampling
+    GP_config["ds_bound"] = 200                # distance b/w agents in s
+    GP_config["lookahead"] = 2.0             # seconds of lookahead
 
     GP_config["test_count"] = 100               # samples when testing
-
 
     return GP_config
 
@@ -224,11 +223,10 @@ def get_GP_config():
 def get_data_collect_config():
     data_config = {}
 
-    data_config["sim_count"] = 20
+    data_config["sim_count"] = 1
     data_config["agent_count"] = 2
     data_config["rand_init"] = True
-    data_config["agent_inits"] = np.array([[900, 0, 0, 0, 0, 0, 0],
-                                           [810, 0, 0, 1, 0, 0, 0],
-                                           [250, 0, 0, 15, 0, 0, 0]])
+    data_config["agent_inits"] = np.array([[100, 0, 0, 0, 0, 0, 0],
+                                           [200, 0, 0, 0, 0, 0, 0]])
 
     return data_config

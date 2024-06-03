@@ -747,12 +747,20 @@ class AdversarialMPCController(MPCController):
 
         return lbx, ubx
 
+
+
+
+
 class SafeMPCController(MPCController):
     def __init__(self,  veh_config, scene_config, control_config):
         super().__init__(veh_config, scene_config, control_config)
         self.GP_config = control_config["GP_config"]
-        self.gpr = GPRegression(self.GP_config, self.scene_config)
-        self.gpr.importGP("gp_models/new/model_5k_250_1-0_ADV.pkl")
+        self.gpr_short = GPRegression(self.GP_config, self.scene_config)
+        self.gpr_long = GPRegression(self.GP_config, self.scene_config)
+        # self.gpr_short.importGP("gp_models/new/model_1k_70_2-0_ADV_straight.pkl")
+        # self.gpr_long.importGP("gp_models/new/model_1k_200_3-0_ADV_straight.pkl")
+        self.gpr_short.importGP("gp_models/new/model_2700_110_2-0_ADV.pkl")
+        self.gpr_long.importGP("gp_models/new/model_5k_250_3-0_ADV.pkl")
 
 
     def initPmatrix(self):
@@ -872,19 +880,23 @@ class SafeMPCController(MPCController):
 
 
     def inferIntentGP(self, state, opp_state):
-        vx,vy = opp_state[3:5]
-        # print("Opp State", opp_state)
-        print("Predicted", opp_state + np.array([vx*self.control_config["T"]+0.5*7.5*9,vy*self.control_config["T"],0,0,0,0,0]))
-        return opp_state + np.array([vx*self.control_config["T"]+0.5*7.5*9,vy*self.control_config["T"],0,0,0,0,0]) # TODO: Placeholder
-        # print("State:", state)
-        # print("Opp State:", opp_state)
-        # gp_predicts = self.gpr.predict(state, opp_state)
-        # print("predict", gp_predicts)
-        # future_opp_state = np.zeros(opp_state.shape)
-        # future_opp_state[:2] = state[:2] - gp_predicts[:2]*6
-        # future_opp_state[2:] = opp_state[2:]
-        # print("Future Opp State:", future_opp_state)
-        # return future_opp_state
+        vx = opp_state[3]
+        ds_for_opp_state = vx*self.control_config["T"]+0.5*0*9
+        # print(np.round([state[0], opp_state[0], ds_for_opp_state], 2))
+        # return opp_state + np.array([ds_for_opp_state,0,0,0,0,0,0]) # TODO: Placeholder
+
+        gp_short_predicts = self.gpr_short.predict(state, opp_state)
+        ds_short, dey_short = gp_short_predicts[0,:2] # where ds and dey are both from (state - future_opp_state)
+        gp_long_predicts = self.gpr_long.predict(state, opp_state)
+        ds_long, dey_long = gp_long_predicts[0,:2]
+        gp_avg_predicts = (gp_short_predicts[0] + gp_long_predicts[0]) / 2
+        print(np.round([state[0], opp_state[0], opp_state[0]-state[0], gp_avg_predicts[0]+(opp_state[0]-state[0]), -ds_for_opp_state], 2))
+        future_opp_state = copy.deepcopy(opp_state)
+        future_opp_state[:2] = state[:2] - gp_avg_predicts[:2]
+        print(np.round([future_opp_state[0], opp_state[0]+ds_for_opp_state], 2))
+        # future_opp_state = state - np.array([ds, 0, 0, 0, 0, 0, 0])
+        return future_opp_state
+
 
 if __name__ == "__main__":
     from config import *

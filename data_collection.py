@@ -36,8 +36,8 @@ from controllers import *
 
 
 
-"""Runs simulations and generates data, exporting to csv files"""
-def generateData(data_config, control_type, end_plots=False):
+"""Runs random simulations and generates data, exporting to csv files"""
+def generateRandomData(data_config, control_type, end_plots=False):
     sim_count = data_config["sim_count"]
     agent_count = data_config["agent_count"]
     rand_init = data_config["rand_init"]
@@ -49,12 +49,37 @@ def generateData(data_config, control_type, end_plots=False):
     print("\nRunning simulations to generate data")
     for i in range(sim_count):
         if rand_init:
-            agent_inits = agentRandomInit(agent_count)
+            agent_init = agentRandomInit(agent_count)
         else:
-            agent_inits = agent_inits[:agent_count, :]
+            agent_init = agent_inits[:agent_count, :]
         
         print("Starting to run simulation #", i+1)
-        sim = runSimulation(agent_inits, control_type, end_plots)
+        sim = runSimulation(agent_init, control_type, end_plots)
+        exportSimDataToCSV(sim, i+1)
+        print("Finished exporting simulation #", i+1)
+        sims.append(sim)
+        print("Finished running simulation #", i+1, "\n")
+
+
+
+"""Runs uniform simulations and generates data, exporting to csv files"""
+def generateUniformData(data_config, control_type, end_plots=False):
+    # sim_count = data_config["sim_count"]
+    agent_count = data_config["agent_count"]
+    # rand_init = data_config["rand_init"]
+    # agent_inits = data_config["agent_inits"]
+    control_type = control_type
+
+    agent_inits, sim_count = agentUniformInit(agent_count)
+    sims = []
+
+    print("\nRunning simulations to generate data")
+    for i in range(sim_count):
+        agent_init = agent_inits[i, :agent_count, :]
+        print(agent_init)
+        
+        print("Starting to run simulation #", i+1)
+        sim = runSimulation(agent_init, control_type, end_plots)
         exportSimDataToCSV(sim, i+1)
         print("Finished exporting simulation #", i+1)
         sims.append(sim)
@@ -95,15 +120,16 @@ def agentRandomInit(agent_count):
     agent_inits = np.zeros((agent_count, 7))
     past_starts = []
 
-    new_start_ref = np.random.randint(0,10000)
+    new_start_ref = np.random.randint(200,10000)
     for i in range(agent_count):
-        new_start = np.random.randint(new_start_ref, new_start_ref+200)
+        new_start = np.random.randint(new_start_ref-200, new_start_ref+200)
         while len(past_starts) > 0:
             if np.any(np.abs(np.array(past_starts) - new_start) <= 100):
-                new_start = np.random.randint(new_start_ref, new_start_ref+200)
+                new_start = np.random.randint(new_start_ref-200, new_start_ref+200)
             else:
                 break
         agent_inits[i,0] = new_start
+        agent_inits[i,1] = np.random.randint(-5, 5)
         agent_inits[i,3] = np.random.randint(0, 20)
         past_starts.append(new_start)
         print("Agent", i, "initialized as:", agent_inits[i,0], agent_inits[i,3])
@@ -112,12 +138,45 @@ def agentRandomInit(agent_count):
 
 
 
+def agentUniformInit(agent_count):
+
+    # start_s = np.arange(200,4200,800)
+    start_s = np.array([200])
+    start_vel = np.arange(50,105,5)
+    sim_count = len(start_s)*len(start_vel)
+
+    agent_inits = np.zeros((sim_count, agent_count, 7))
+
+    counter = 0
+    for i, s in enumerate(start_s):
+        for j, v in enumerate(start_vel):
+            agent_inits[counter, 0, 0] = s
+            agent_inits[counter, 0, 1] = np.random.randint(-15, 15)
+            agent_inits[counter, 0, 3] = v + np.random.randint(-2, 2)
+            past_starts = [s]
+            for k in range(1,agent_count):
+                new_start = np.random.randint(s-75, s+75)
+                while len(past_starts) > 0:
+                    if np.any(np.abs(np.array(past_starts) - new_start) <= 20):
+                        new_start = np.random.randint(s-75, s+75)
+                    else:
+                        break
+                agent_inits[counter, k, 0] = new_start
+                agent_inits[counter, k, 1] = np.random.randint(-15, 15)
+                agent_inits[counter, k, 3] = v + np.random.randint(-2, 2)
+                past_starts.append(new_start)
+            counter += 1
+    
+    return agent_inits, sim_count
+            
+
+
 """Exports a sim's data to a csv file"""
 def exportSimDataToCSV(sim, dataID):
     sim_data = sim.exportSimData()
     # file_name = "train_data/CV_test_data/data" + str(dataID) + ".csv"
     # file_name = "train_data/MPC_test_data/data" + str(dataID) + ".csv"
-    file_name = "train_data/ADV_test_data/data" + str(dataID) + ".csv"
+    file_name = "train_data/ADV_test2_data/data" + str(dataID+120) + ".csv"
 
     with open(file_name, 'w') as csv_file:
         writer = csv.writer(csv_file)
@@ -131,6 +190,7 @@ if __name__ == "__main__":
 
     data_config = get_data_collect_config()
     control_type = [AdversarialMPCController, AdversarialMPCController]
-    generateData(data_config, end_plots=False)
+    # generateRandomData(data_config, control_type, end_plots=False)
+    generateUniformData(data_config, control_type, end_plots=False)
 
 
