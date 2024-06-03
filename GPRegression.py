@@ -342,11 +342,11 @@ if __name__ == "__main__":
     scene_config = get_scene_config()
     gpr = GPRegression(GP_config, scene_config)
 
-    sim_counts = np.arange(1,121)
-    file_path = "train_data/ADV_test2_data"
+    sim_counts = np.arange(1,241)
+    file_path = "train_data/ADV_handicap_data"
     gpr.importSimData(file_path, sim_counts)
     gpr.trainGP()
-    gpr.exportGP("gp_models/new/model_5k_110_2-0_ADV.pkl")
+    gpr.exportGP("gp_models/ADV_handicap/model_5k_250_3-0_ADV.pkl")
 
     # gpr.importGP("gp_models/new/model_1k_200_1-5_ADV_straight.pkl")
     # sim_counts = np.arange(11,20)

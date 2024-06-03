@@ -122,10 +122,10 @@ def agentRandomInit(agent_count):
 
     new_start_ref = np.random.randint(200,10000)
     for i in range(agent_count):
-        new_start = np.random.randint(new_start_ref-200, new_start_ref+200)
+        new_start = np.random.randint(new_start_ref-100, new_start_ref+100)
         while len(past_starts) > 0:
-            if np.any(np.abs(np.array(past_starts) - new_start) <= 100):
-                new_start = np.random.randint(new_start_ref-200, new_start_ref+200)
+            if np.any(np.abs(np.array(past_starts) - new_start) <= 50):
+                new_start = np.random.randint(new_start_ref-100, new_start_ref+100)
             else:
                 break
         agent_inits[i,0] = new_start
@@ -140,9 +140,8 @@ def agentRandomInit(agent_count):
 
 def agentUniformInit(agent_count):
 
-    # start_s = np.arange(200,4200,800)
-    start_s = np.array([200])
-    start_vel = np.arange(50,105,5)
+    start_s = np.arange(100,4800,800)
+    start_vel = np.arange(5,105,5)
     sim_count = len(start_s)*len(start_vel)
 
     agent_inits = np.zeros((sim_count, agent_count, 7))
@@ -152,18 +151,18 @@ def agentUniformInit(agent_count):
         for j, v in enumerate(start_vel):
             agent_inits[counter, 0, 0] = s
             agent_inits[counter, 0, 1] = np.random.randint(-15, 15)
-            agent_inits[counter, 0, 3] = v + np.random.randint(-2, 2)
+            agent_inits[counter, 0, 3] = v + np.random.randint(-3, 3)
             past_starts = [s]
             for k in range(1,agent_count):
                 new_start = np.random.randint(s-75, s+75)
                 while len(past_starts) > 0:
-                    if np.any(np.abs(np.array(past_starts) - new_start) <= 20):
+                    if np.any(np.abs(np.array(past_starts) - new_start) <= 25):
                         new_start = np.random.randint(s-75, s+75)
                     else:
                         break
                 agent_inits[counter, k, 0] = new_start
                 agent_inits[counter, k, 1] = np.random.randint(-15, 15)
-                agent_inits[counter, k, 3] = v + np.random.randint(-2, 2)
+                agent_inits[counter, k, 3] = v + np.random.randint(-3, 3)
                 past_starts.append(new_start)
             counter += 1
     
@@ -176,7 +175,8 @@ def exportSimDataToCSV(sim, dataID):
     sim_data = sim.exportSimData()
     # file_name = "train_data/CV_test_data/data" + str(dataID) + ".csv"
     # file_name = "train_data/MPC_test_data/data" + str(dataID) + ".csv"
-    file_name = "train_data/ADV_test2_data/data" + str(dataID+120) + ".csv"
+    # file_name = "train_data/ADV_test2_data/data" + str(dataID+120) + ".csv"
+    file_name = "train_data/ADV_handicap_data/data" + str(dataID+120) + ".csv"
 
     with open(file_name, 'w') as csv_file:
         writer = csv.writer(csv_file)
@@ -189,7 +189,7 @@ def exportSimDataToCSV(sim, dataID):
 if __name__ == "__main__":
 
     data_config = get_data_collect_config()
-    control_type = [AdversarialMPCController, AdversarialMPCController]
+    control_type = [MPCController, AdversarialMPCController]
     # generateRandomData(data_config, control_type, end_plots=False)
     generateUniformData(data_config, control_type, end_plots=False)
 

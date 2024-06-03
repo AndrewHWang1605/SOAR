@@ -553,7 +553,7 @@ class MPCController(Controller):
             
             u0 = ca.DM(ref_traj[-INPUT_DIM:, :-1])
             # u0 = ca.DM.zeros((INPUT_DIM, N)) + 0.1
-            print("Warm",X0[:,:3])
+            # print("Warm",X0[:,:3])
         else:
             X0 = ca.DM(self.warm_start["X0"])
             u0 = ca.DM(self.warm_start["u0"])
@@ -581,8 +581,9 @@ class MPCController(Controller):
 
         if not self.mpc_solver.stats()["success"]:
             print("=== FAILED:", self.mpc_solver.stats()["return_status"], sol['g'].shape)
-            print("State", state)
-            print("Oppo", oppo_states)
+            # print("State", state)
+            # print("Oppo", oppo_states)
+            
             # print(sol['g'][-(N+1):])
             # print(x_opt[0,:]+sol['g'][-(N+1):])
             # plt.figure()
@@ -778,10 +779,10 @@ class SafeMPCController(MPCController):
         self.GP_config = control_config["GP_config"]
         self.gpr_short = GPRegression(self.GP_config, self.scene_config)
         self.gpr_long = GPRegression(self.GP_config, self.scene_config)
-        # self.gpr_short.importGP("gp_models/new/model_1k_70_2-0_ADV_straight.pkl")
-        # self.gpr_long.importGP("gp_models/new/model_1k_200_3-0_ADV_straight.pkl")
-        self.gpr_short.importGP("gp_models/new/model_2700_110_2-0_ADV.pkl")
-        self.gpr_long.importGP("gp_models/new/model_5k_250_3-0_ADV.pkl")
+        self.gpr_short.importGP("gp_models/ADV_handicap/model_5k_150_2-0_ADV.pkl")
+        self.gpr_long.importGP("gp_models/ADV_handicap/model_5k_250_3-0_ADV.pkl")
+        # self.gpr_short.importGP("gp_models/new/model_2700_110_2-0_ADV.pkl")
+        # self.gpr_long.importGP("gp_models/new/model_5k_250_3-0_ADV.pkl")
 
         self.controller_type = "safe_mpc"
         self.initGPHist()

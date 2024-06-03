@@ -60,7 +60,7 @@ class Simulator:
         retVal = True
         sim_steps = int(self.sim_time / self.dt)
         for i in range(sim_steps):
-            if i%1000 == 0:
+            if i%500 == 0:
                 print("Running simulation: ", i*self.dt, " sec passed")
 
             agent_states = {}
