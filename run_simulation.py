@@ -96,8 +96,8 @@ class Simulator:
                 anim = self.animateRace(follow_agent_ID=follow_ID)
                 if save:
                     writergif = animation.PillowWriter(fps=30)
-                    anim.save('filename.gif',writer=writergif)
-                    # anim.save("./videos/racerace_video_{}.mp4".format("agent"+str(follow_ID) if follow_ID is not None else "global"))
+                    # anim.save('filename.gif',writer=writergif)
+                    anim.save("./videos/race_video_{}.mp4".format("agent"+str(follow_ID) if follow_ID is not None else "global"))
                 else:
                     plt.show()
         if end_plot:
@@ -273,14 +273,14 @@ if __name__ == "__main__":
     agent3 = BicycleVehicle(veh_config, scene_config, x0_3, controller3, 3, color='g')
     # sim.addAgent(agent3)
 
-    x0_4 = np.array([0, 0, 0, 0, 0, 0, 0])
+    x0_4 = np.array([0, 0, 0, 5, 0, 0, 0])
     # x0_4 = np.array([950, 0, 0, 10, 0, 0, 0])
     controller4 = SafeMPCController(veh_config, scene_config, cont_config)
     # controller4 = MPCController(veh_config, scene_config, cont_config)
     agent4 = BicycleVehicle(veh_config, scene_config, x0_4, controller4, 4, color='g', add_noise=False)
     sim.addAgent(agent4)
 
-    x0_5 = np.array([60, -12, 0, 0, 0, 0, 0])
+    x0_5 = np.array([80, -12, 0, 0, 0, 0, 0])
     # x0_5 = np.array([1000, -5, 0, 5, 0, 0, 0])
     controller5 = AdversarialMPCController(veh_config, scene_config, cont_config)
     agent5 = BicycleVehicle(veh_config, scene_config, x0_5, controller5, 5, color='r')
