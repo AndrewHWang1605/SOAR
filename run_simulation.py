@@ -60,7 +60,7 @@ class Simulator:
         retVal = True
         sim_steps = int(self.sim_time / self.dt)
         for i in range(sim_steps):
-            if i%1000 == 0:
+            if i%500 == 0:
                 print("Running simulation: ", i*self.dt, " sec passed")
 
             agent_states = {}
@@ -274,20 +274,17 @@ if __name__ == "__main__":
     # sim.addAgent(agent3)
 
     x0_4 = np.array([0, 0, 0, 0, 0, 0, 0])
-    # x0_4 = np.array([950, 0, 0, 10, 0, 0, 0])
+    # x0_4 = np.array([0.25, 0, 0, 10, 0, 0, 0])
     controller4 = SafeMPCController(veh_config, scene_config, cont_config)
     # controller4 = MPCController(veh_config, scene_config, cont_config)
     agent4 = BicycleVehicle(veh_config, scene_config, x0_4, controller4, 4, color='g', add_noise=False)
     sim.addAgent(agent4)
 
-    x0_5 = np.array([60, -12, 0, 0, 0, 0, 0])
-    # x0_5 = np.array([1000, -5, 0, 5, 0, 0, 0])
+    x0_5 = np.array([60, -12, 0, 3, 0, 0, 0])
+    # x0_5 = np.array([50, 8, 0, 12, 0, 0, 0])
     controller5 = AdversarialMPCController(veh_config, scene_config, cont_config)
     agent5 = BicycleVehicle(veh_config, scene_config, x0_5, controller5, 5, color='r')
     sim.addAgent(agent5)
     
     # sim.runSim(end_plot=True, animate=False, save=False, follow_agent_IDs=[None, 4])
     sim.runSim(end_plot=True, animate=True, save=True, follow_agent_IDs=[4,5])
-    
-
-    
