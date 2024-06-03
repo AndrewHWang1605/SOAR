@@ -209,7 +209,9 @@ class BicycleVehicle(Agent):
 
     def addProcessNoise(self, state):
         # s, ey, epsi, vx, vy, omega, delta = x
-        noisy_covar = np.eye(state.shape[0]) * [5e-2, 5e-4, 2e-7, 5e-3, 2e-5, 5e-8, 2e-8] * 3
+        # TODO: Noise too large? Figure this out
+        noisy_covar = np.eye(state.shape[0]) * [5e-3, 5e-4, 2e-7, 5e-3, 2e-5, 5e-8, 2e-8] * 3
         noisy_state = state + np.random.multivariate_normal(np.zeros(state.shape), noisy_covar)
+        # print(state, noisy_state)
         return noisy_state
 
