@@ -91,6 +91,10 @@ class Simulator:
 
         if self.sim_success:
             print("Finished simulation: ", sim_steps, " timesteps passed\n")
+        if end_plot:
+            self.plotCLStates()
+            self.plotAgentTrack()
+            plt.show()
         if animate:
             for follow_ID in follow_agent_IDs:
                 anim = self.animateRace(follow_agent_ID=follow_ID)
@@ -100,10 +104,6 @@ class Simulator:
                     anim.save("./videos/race_video_{}.mp4".format("agent"+str(follow_ID) if follow_ID is not None else "global"))
                 else:
                     plt.show()
-        if end_plot:
-            self.plotCLStates()
-            self.plotAgentTrack()
-            plt.show()
         return retVal
     
 
@@ -215,6 +215,14 @@ class Simulator:
                 ax.add_patch(patch)
                 agent.assignPatch(patch)
                 car_patch_list.append(patch)
+
+                if agent.controller.controller_type == "safe_mpc":
+                    patchDict = {}
+                    for agentID in agent.controller.agentID2ind:
+                        traj, = ax.plot([0],[0], agent.color)
+                        patchDict[agentID] = traj
+                        car_patch_list.append(traj)
+                    agent.controller.assignGPPredPatch(patchDict)
             return car_patch_list
 
         def animate(i):
@@ -224,6 +232,16 @@ class Simulator:
                 lr = agent.lr
                 hw = agent.halfwidth
                 patch = agent.patch
+
+                controller = agent.controller
+                if np.isclose((i*self.scene_config["anim_downsample_factor"]*self.dt / agent.controller.ctrl_period), np.round(i*self.scene_config["anim_downsample_factor"]*self.dt / agent.controller.ctrl_period), atol=1e-3): # Run at proper frequency
+                    if agent.controller.controller_type == "safe_mpc":
+                        gp_pred_hist = agent.controller.gp_pred_hist[int(np.round(i*self.scene_config["anim_downsample_factor"]*self.dt / agent.controller.ctrl_period))]
+                        for agentID in controller.agentID2ind:
+                            s_ey = gp_pred_hist[controller.agentID2ind[agentID]]
+                            xy = self.scene_config["track"].CLtoGlobalPos(s_ey)
+                            traj = agent.controller.patchDict[agentID]
+                            traj.set_data(xy)
 
                 x, y, theta, vx, vy, w, delta = agent.x_global_hist[i*self.scene_config["anim_downsample_factor"],:]
 
@@ -273,7 +291,7 @@ if __name__ == "__main__":
     agent3 = BicycleVehicle(veh_config, scene_config, x0_3, controller3, 3, color='g')
     # sim.addAgent(agent3)
 
-    x0_4 = np.array([0, 0, 0, 5, 0, 0, 0])
+    x0_4 = np.array([0, 0, 0, 0, 0, 0, 0])
     # x0_4 = np.array([950, 0, 0, 10, 0, 0, 0])
     controller4 = SafeMPCController(veh_config, scene_config, cont_config)
     # controller4 = MPCController(veh_config, scene_config, cont_config)
@@ -287,7 +305,7 @@ if __name__ == "__main__":
     sim.addAgent(agent5)
     
     # sim.runSim(end_plot=True, animate=False, save=False, follow_agent_IDs=[None, 4])
-    sim.runSim(end_plot=True, animate=True, save=True, follow_agent_IDs=[4,5])
+    sim.runSim(end_plot=False, animate=True, save=True, follow_agent_IDs=[4,5])
     
 
     

@@ -51,6 +51,21 @@ class Track:
         global_state = np.array([x, y, theta, vx, vy, w, delta])
         return global_state
 
+    # Convert curvilinear coordinates to global, but for long and lat position arrays
+    def CLtoGlobalPos(self, state):
+        """
+        curvilinear state: [s, ey]
+        global state: [x, y]
+        """
+        s, ey = state[0,:], state[1,:]
+        track_x, track_y, track_psi = self.getTrackPosition(s)
+                
+        x = track_x - ey*np.sin(track_psi)
+        y = track_y + ey*np.cos(track_psi)
+
+        global_state = np.vstack((x,y))
+        return global_state
+
     def getCurvature(self, s):
         s = self.normalizeS(s)
         curvature = np.interp(s, self.s, self.track_curvature)

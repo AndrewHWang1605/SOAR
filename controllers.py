@@ -40,6 +40,8 @@ class Controller:
         self.scene_config = scene_config
         self.control_config = control_config
         self.ctrl_period = None
+        self.current_timestep = 0
+        self.controller_type = "base"
 
     def computeControl(self, state, oppo_states, t):
         """
@@ -52,12 +54,14 @@ class SinusoidalController(Controller):
     def __init__(self,  veh_config, scene_config, control_config):
         super().__init__(veh_config, scene_config, control_config)
         self.ctrl_period = 1.0 / control_config["sine_ctrl_freq"]
+        self.controller_type = "sinusoidal"
 
     def computeControl(self, state, oppo_states, t):
         """
         Calculate next input (rear wheel commanded acceleration, derivative of steering angle) 
         """
         w = self.control_config["omega"]
+        self.current_timestep += 1
         return 2, w*np.pi/180*np.cos(w*t)
 
 """Constant velocity controller for trajectory following of track centerline"""
@@ -75,6 +79,8 @@ class ConstantVelocityController(Controller):
         self.delta_error = 0
         self.prev_delta_error = 0
         self.total_delta_error = 0
+
+        self.controller_type = "const_vel"
 
     def computeControl(self, state, oppo_states, t):
         """
@@ -143,6 +149,7 @@ class ConstantVelocityController(Controller):
             steering_rate = delta_dot
         steering_rate = np.clip(steering_rate, -self.veh_config["max_steer_rate"], self.veh_config["max_steer_rate"])
 
+        self.current_timestep += 1
         return accel, steering_rate
     
 """Try to exactly track nominal trajectory (for debugging)"""
@@ -153,6 +160,8 @@ class NominalOptimalController(Controller):
         self.s_hist = unpack_file["s"]
         self.accel_hist = unpack_file["u_a"]
         self.ddelta_hist = unpack_file["u_s"]
+        self.controller_type = "nom_opt"
+
 
     def computeControl(self, state, oppo_states, t):
         """
@@ -164,6 +173,7 @@ class NominalOptimalController(Controller):
         total_len = self.scene_config["track"].total_len
         s = self.scene_config["track"].normalizeS(s)
         nearest_s_ind = np.where(s >= self.s_hist)[0][-1]
+        self.current_timestep += 1
         return self.accel_hist[nearest_s_ind], self.ddelta_hist[nearest_s_ind]
 
 
@@ -176,6 +186,7 @@ class MPCController(Controller):
         self.race_line_mat = self.constructRaceLineMat(self.race_line)
         self.mpc_solver, self.solver_args = self.initSolver()
         self.warm_start = {}
+        self.controller_type = "mpc"
         
     def constructRaceLineMat(self, raceline):
         """
@@ -579,10 +590,11 @@ class MPCController(Controller):
             # plt.plot(self.solver_args['lbg'])
             # plt.plot(self.solver_args['ubg'])
             # plt.legend(["g", "lbg", "ubg"])
-            # self.lookUnderTheHood(x_opt, u_opt, ref_traj)
+        # self.lookUnderTheHood(x_opt, u_opt, ref_traj)
 
 
         print("Compute Time", time.time()-t)
+        self.current_timestep += 1
         return u_opt[0, 0], u_opt[1, 0]
 
     def lookUnderTheHood(self, x_opt, u_opt, ref_traj):
@@ -600,7 +612,14 @@ class MPCController(Controller):
             plt.plot(u_opt[i-7,:])
             plt.title(titles[i])
             plt.plot(ref_traj[i,:])
+        
+        if self.controller_type == "safe_mpc":
+            plt.figure()
+            plt.plot("Projected opponent trajectory")
+            plt.scatter(self.gp_pred_hist[self.current_timestep+1, 0, 0], self.gp_pred_hist[self.current_timestep+1,0,1])
         plt.show()
+
+
 
         a = input("Continue? ")
         if (a == 'n'):
@@ -610,6 +629,8 @@ class MPCController(Controller):
 class AdversarialMPCController(MPCController):
     def __init__(self,  veh_config, scene_config, control_config):
         super().__init__(veh_config, scene_config, control_config)
+        self.controller_type = "adv_mpc"
+
 
     def initPmatrix(self):
         """
@@ -762,6 +783,24 @@ class SafeMPCController(MPCController):
         self.gpr_short.importGP("gp_models/new/model_2700_110_2-0_ADV.pkl")
         self.gpr_long.importGP("gp_models/new/model_5k_250_3-0_ADV.pkl")
 
+        self.controller_type = "safe_mpc"
+        self.initGPHist()
+
+    def assignGPPredPatch(self, patchDict):
+        self.patchDict = patchDict
+
+    def initGPHist(self):
+        sim_time = self.scene_config["sim_time"]
+        self.dt = self.scene_config["dt"]
+        timesteps = int(sim_time / self.dt)
+        T = self.control_config["T"]            # Prediction horizon
+        freq = self.control_config["opt_freq"]  # Optimization Frequency
+        N = int(T*freq)                         # Number of discretization steps
+
+        max_number_opponents = self.control_config["safe_opt_max_num_opponents"]
+        self.gp_pred_hist = np.zeros((timesteps, max_number_opponents, 2, N+1))
+        self.agentID2ind = {}
+        self.current_timestep = 0
 
     def initPmatrix(self):
         """
@@ -816,12 +855,15 @@ class SafeMPCController(MPCController):
         opp_pos = np.zeros((2, len(oppo_states)))
         opp_future_pos = np.zeros((2, len(oppo_states)))
         # Iterate through to unpack oppo_states into a numpy array
+        ordered_agent_ID = []
         i = 0
         for agent_ID in oppo_states:
             opp_state = oppo_states[agent_ID]
             future_opp_state = self.inferIntentGP(state, opp_state)
+            # future_opp_state_2s, future_opp_state_3s = self.inferIntentGP(state, opp_state)
             opp_pos[:,i] = opp_state[:2]
             opp_future_pos[:,i] = future_opp_state[:2]
+            ordered_agent_ID.append(agent_ID)
             i += 1
         if len(oppo_states) <= max_num_opponents: # Less opponents than max, so add them all if close enough
             smallInd = np.arange(0, len(oppo_states), 1)
@@ -830,8 +872,10 @@ class SafeMPCController(MPCController):
         # Loop through and add all positions if close enough
         counter = 0
         for ind in smallInd:
+            agent_ID = ordered_agent_ID[ind]
             opp_position = opp_pos[:, ind]
             future_opp_position = opp_future_pos[:, ind]
+            print("Curr->Future", opp_position, future_opp_position)
             curr_opp_s, future_opp_s, s = opp_position[0], future_opp_position[0], state[0]
             ds_curr = track.signedSDist(s, curr_opp_s)
             ds_future = track.signedSDist(s, future_opp_s)
@@ -840,7 +884,15 @@ class SafeMPCController(MPCController):
             if np.abs(ds_curr)<max_safe_opp_dist or np.abs(ds_future)<max_safe_opp_dist or (np.sign(ds_curr) != np.sign(ds_future)):
                 # Accounts for (1) current opp state unsafe, (2) future opp state unsafe, (3) curr/future state safe, BUT crosses ds=0 in between)
                 # Add trajectory to be considered, interpolating between current and future opponent (s,ey)
-                oppo_pos_mat[2*counter:2*(counter+1),:] = np.linspace(opp_state[:2], future_opp_state[:2], ref_traj.shape[1]).T
+                oppo_pos_mat[2*counter:2*(counter+1),:] = np.linspace(opp_position, future_opp_position, ref_traj.shape[1]).T
+                if agent_ID not in self.agentID2ind:
+                    if not self.agentID2ind:
+                        self.agentID2ind[agent_ID] = 0
+                    else:
+                        self.agentID2ind[agent_ID] = 1+np.max([self.agentID2ind[key] for key in self.agentID2ind])
+                hist_ind = self.agentID2ind[agent_ID]
+                self.gp_pred_hist[self.current_timestep, hist_ind, :, :] = oppo_pos_mat[2*counter:2*(counter+1),:]
+                print(oppo_pos_mat[2*counter:2*(counter+1),:])
                 counter += 1
         state_ref = np.hstack((state.reshape((STATE_DIM,1)), ref_traj[:STATE_DIM,1:]))
         P_mat = np.vstack((state_ref, curvature, oppo_pos_mat, ref_traj[STATE_DIM:]))
@@ -889,13 +941,23 @@ class SafeMPCController(MPCController):
         ds_short, dey_short = gp_short_predicts[0,:2] # where ds and dey are both from (state - future_opp_state)
         gp_long_predicts = self.gpr_long.predict(state, opp_state)
         ds_long, dey_long = gp_long_predicts[0,:2]
+
+        # Take the average
         gp_avg_predicts = (gp_short_predicts[0] + gp_long_predicts[0]) / 2
-        print(np.round([state[0], opp_state[0], opp_state[0]-state[0], gp_avg_predicts[0]+(opp_state[0]-state[0]), -ds_for_opp_state], 2))
+        # print(np.round([stat e[0], opp_state[0], opp_state[0]-state[0], gp_avg_predicts[0]+(opp_state[0]-state[0]), -ds_for_opp_state], 2))
         future_opp_state = copy.deepcopy(opp_state)
         future_opp_state[:2] = state[:2] - gp_avg_predicts[:2]
         print(np.round([future_opp_state[0], opp_state[0]+ds_for_opp_state], 2))
-        # future_opp_state = state - np.array([ds, 0, 0, 0, 0, 0, 0])
+        print(np.round([future_opp_state[1]], 2), dey_short, dey_long)
         return future_opp_state
+
+        # Return both
+        # future_opp_state_2s = copy.deepcopy(opp_state)
+        # future_opp_state_3s = copy.deepcopy(opp_state)
+        # future_opp_state_2s[:2] = state[:2] - gp_short_predicts[:2]
+        # future_opp_state_3s[:2] = state[:2] - gp_long_predicts[:2]
+
+        # return future_opp_state_2s, future_opp_state_3s
 
 
 if __name__ == "__main__":
