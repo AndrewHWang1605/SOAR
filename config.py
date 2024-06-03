@@ -99,7 +99,7 @@ def get_scene_config(track_type=OVAL_TRACK):
     scene_config["track"] = track
     scene_config["track_config"] = track_config
     scene_config["dt"] = 0.001
-    scene_config["sim_time"] = 10
+    scene_config["sim_time"] = 20
 
     scene_config["anim_downsample_factor"] = 50
     scene_config["anim_window"] = 150
@@ -189,13 +189,12 @@ def get_controller_config(veh_config, scene_config):
 def get_GP_config():
     GP_config = {}
 
-    GP_config["sample_count"] = 500           # samples when fitting/training
-    GP_config["sample_attempt_repeat"] = 10     # attempts when random sampling
-    GP_config["ds_bound"] = 250                 # distance b/w agents in s
-    GP_config["lookahead"] = 0.5             # seconds of lookahead
+    GP_config["sample_count"] = 5000           # samples when fitting/training
+    GP_config["sample_attempt_repeat"] = 15     # attempts when random sampling
+    GP_config["ds_bound"] = 200                # distance b/w agents in s
+    GP_config["lookahead"] = 2.0             # seconds of lookahead
 
     GP_config["test_count"] = 100               # samples when testing
-
 
     return GP_config
 

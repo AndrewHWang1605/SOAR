@@ -550,7 +550,7 @@ class MPCController(Controller):
         # self.lookUnderTheHood(x_opt, u_opt, ref_traj)
         if not self.mpc_solver.stats()["success"]:
             print("=== FAILED:", self.mpc_solver.stats()["return_status"])
-        print("Compute Time", time.time()-t)
+        # print("Compute Time", time.time()-t)
         return u_opt[0, 0], u_opt[1, 0]
 
     def lookUnderTheHood(self, x_opt, u_opt, ref_traj):
@@ -682,12 +682,20 @@ class AdversarialMPCController(MPCController):
                (final_st[1] - ref[STATE_DIM+1]).T @ k_ey_diff @ (final_st[1] - ref[STATE_DIM+1])
 
 
+
+
+
+
 class SafeMPCController(MPCController):
     def __init__(self,  veh_config, scene_config, control_config):
         super().__init__(veh_config, scene_config, control_config)
         self.GP_config = control_config["GP_config"]
-        self.gpr = GPRegression(self.GP_config, self.scene_config)
-        self.gpr.importGP("gp_models/new/model_5k_250_1-0_ADV.pkl")
+        self.gpr_short = GPRegression(self.GP_config, self.scene_config)
+        self.gpr_long = GPRegression(self.GP_config, self.scene_config)
+        # self.gpr_short.importGP("gp_models/new/model_1k_70_2-0_ADV_straight.pkl")
+        # self.gpr_long.importGP("gp_models/new/model_1k_200_3-0_ADV_straight.pkl")
+        self.gpr_short.importGP("gp_models/new/model_2700_110_2-0_ADV.pkl")
+        self.gpr_long.importGP("gp_models/new/model_5k_250_3-0_ADV.pkl")
 
 
     def initPmatrix(self):
@@ -809,14 +817,21 @@ class SafeMPCController(MPCController):
 
 
     def inferIntentGP(self, state, opp_state):
-        # vx = opp_state[3]
-        # return opp_state + np.array([vx*self.control_config["T"]+0.5*0*9,0,0,0,0,0,0]) # TODO: Placeholder
-        
-        gp_predicts = self.gpr.predict(state, opp_state)
-        ds, dey = gp_predicts[0,:2] # where ds and dey are both from (state - future_opp_state)
-        future_opp_state = np.zeros(opp_state.shape)
-        future_opp_state[:2] = state[:2] - gp_predicts[:2]
-        future_opp_state[2:] = opp_state[2:]
+        vx = opp_state[3]
+        ds_for_opp_state = vx*self.control_config["T"]+0.5*0*9
+        # print(np.round([state[0], opp_state[0], ds_for_opp_state], 2))
+        # return opp_state + np.array([ds_for_opp_state,0,0,0,0,0,0]) # TODO: Placeholder
+
+        gp_short_predicts = self.gpr_short.predict(state, opp_state)
+        ds_short, dey_short = gp_short_predicts[0,:2] # where ds and dey are both from (state - future_opp_state)
+        gp_long_predicts = self.gpr_long.predict(state, opp_state)
+        ds_long, dey_long = gp_long_predicts[0,:2]
+        gp_avg_predicts = (gp_short_predicts[0] + gp_long_predicts[0]) / 2
+        print(np.round([state[0], opp_state[0], opp_state[0]-state[0], gp_avg_predicts[0]+(opp_state[0]-state[0]), -ds_for_opp_state], 2))
+        future_opp_state = copy.deepcopy(opp_state)
+        future_opp_state[:2] = state[:2] - gp_avg_predicts[:2]
+        print(np.round([future_opp_state[0], opp_state[0]+ds_for_opp_state], 2))
+        # future_opp_state = state - np.array([ds, 0, 0, 0, 0, 0, 0])
         return future_opp_state
 
 
