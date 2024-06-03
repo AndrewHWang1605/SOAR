@@ -27,6 +27,7 @@ Implement various controllers
 import numpy as np
 import casadi as ca
 import time, copy
+import matplotlib.pyplot as plt 
 
 from GPRegression import GPRegression
 
@@ -242,29 +243,8 @@ class MPCController(Controller):
         f = ca.Function('f', [states, controls, reference], [next_state]) # Maps states, controls, reference (for curvature) to next state
         force_fun = ca.Function('force_fun', [states, controls, reference], [force_norm])
 
-        # Define state constraints
-        lbx = ca.DM.zeros((STATE_DIM*(N+1) + INPUT_DIM*N, 1))
-        ubx = ca.DM.zeros((STATE_DIM*(N+1) + INPUT_DIM*N, 1))
-        lbx[0 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_lb"]["s"]
-        lbx[1 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_lb"]["ey"]
-        lbx[2 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_lb"]["epsi"]
-        lbx[3 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_lb"]["vx"]
-        lbx[4 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_lb"]["vy"]
-        lbx[5 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_lb"]["omega"]
-        lbx[6 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_lb"]["delta"]
-        ubx[0 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_ub"]["s"]
-        ubx[1 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_ub"]["ey"]
-        ubx[2 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_ub"]["epsi"]
-        ubx[3 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_ub"]["vx"]
-        ubx[4 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_ub"]["vy"]
-        ubx[5 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_ub"]["omega"]
-        ubx[6 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_ub"]["delta"]
-
-        # Define input constraints
-        lbx[STATE_DIM*(N+1) : : INPUT_DIM] = self.control_config["input_lb"]["accel"]
-        lbx[STATE_DIM*(N+1) + 1 : : INPUT_DIM] = self.control_config["input_lb"]["ddelta"]
-        ubx[STATE_DIM*(N+1) : : INPUT_DIM] = self.control_config["input_ub"]["accel"]
-        ubx[STATE_DIM*(N+1) + 1 : : INPUT_DIM] = self.control_config["input_ub"]["ddelta"]
+        # Define state/input constraints
+        lbx, ubx = self.configureInputConstraints()
 
         # Initialize constraints (g) bounds
         lbg, ubg = self.configureConstraints() # KEY: Assumes that lbg/ubg generated here matches order of g generated below
@@ -303,7 +283,7 @@ class MPCController(Controller):
         opts = {
             'ipopt': {
                 'max_iter': 2000,
-                'max_wall_time': 1, #s
+                'max_wall_time': 20, #s
                 'print_level': 0,
                 'acceptable_tol': 1e-8,
                 'acceptable_obj_change_tol': 1e-6
@@ -358,6 +338,37 @@ class MPCController(Controller):
         Q = ca.diagcat(k_s, k_ey, k_epsi, k_vx, k_vy, k_omega, k_delta)
 
         return (final_st - ref[:STATE_DIM]).T @ Q @ (final_st - ref[:STATE_DIM])
+
+    def configureInputConstraints(self):
+        T = self.control_config["T"]            # Prediction horizon
+        freq = self.control_config["opt_freq"]  # Optimization Frequency
+        N = int(T*freq)                         # Number of discretization steps
+
+        # Define state constraints
+        lbx = ca.DM.zeros((STATE_DIM*(N+1) + INPUT_DIM*N, 1))
+        ubx = ca.DM.zeros((STATE_DIM*(N+1) + INPUT_DIM*N, 1))
+        lbx[0 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_lb"]["s"]
+        lbx[1 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_lb"]["ey"]
+        lbx[2 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_lb"]["epsi"]
+        lbx[3 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_lb"]["vx"]
+        lbx[4 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_lb"]["vy"]
+        lbx[5 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_lb"]["omega"]
+        lbx[6 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_lb"]["delta"]
+        ubx[0 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_ub"]["s"]
+        ubx[1 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_ub"]["ey"]
+        ubx[2 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_ub"]["epsi"]
+        ubx[3 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_ub"]["vx"]
+        ubx[4 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_ub"]["vy"]
+        ubx[5 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_ub"]["omega"]
+        ubx[6 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["states_ub"]["delta"]
+
+        # Define input constraints
+        lbx[STATE_DIM*(N+1) : : INPUT_DIM] = self.control_config["input_lb"]["accel"]
+        lbx[STATE_DIM*(N+1) + 1 : : INPUT_DIM] = self.control_config["input_lb"]["ddelta"]
+        ubx[STATE_DIM*(N+1) : : INPUT_DIM] = self.control_config["input_ub"]["accel"]
+        ubx[STATE_DIM*(N+1) + 1 : : INPUT_DIM] = self.control_config["input_ub"]["ddelta"]
+
+        return lbx, ubx
 
     def configureConstraints(self):
         """ Configure constraints upper and lower bounds (assumes consistent with updateStageCustomConstraints) """
@@ -515,6 +526,7 @@ class MPCController(Controller):
         dt = 1.0/freq                    
         delta_t = np.arange(0, T+dt, dt)
         N = int(T*freq)
+        # state[0] = self.scene_config["track"].normalizeS(state[0])
         t_hist, ref_traj = self.getRefTrajectory(state[0], delta_t) # s, ey, epsi, vx, vy, omega, delta, accel, ddelta
 
         # Initialize params
@@ -522,11 +534,20 @@ class MPCController(Controller):
         self.solver_args['p'] = ca.DM(P_mat)
 
         if not self.warm_start: # At first iteration, reference is our best warm start
-            X0 = ca.DM(ref_traj[:STATE_DIM, :])
+            # np.random.seed(0)
+            # X0 = ca.DM(np.hstack((state.reshape((-1,1)), state.reshape((-1,1)) + 0.01*np.random.randn(STATE_DIM, N))))
+            X0 = ca.DM(np.tile(state.reshape((-1,1)), N+1))
+            # X0 = ca.DM(np.hstack((state.reshape((-1,1)), ref_traj[:STATE_DIM, 1:])))
+            # X0 = ca.DM(ref_traj[:STATE_DIM])
+            
             u0 = ca.DM(ref_traj[-INPUT_DIM:, :-1])
+            # u0 = ca.DM.zeros((INPUT_DIM, N)) + 0.1
+            print("Warm",X0[:,:3])
         else:
             X0 = ca.DM(self.warm_start["X0"])
             u0 = ca.DM(self.warm_start["u0"])
+
+        # u0[0,:] = -10
 
         self.solver_args['x0'] = ca.vertcat(
             ca.reshape(X0, STATE_DIM*(N+1), 1),
@@ -547,18 +568,27 @@ class MPCController(Controller):
 
         self.warm_start["X0"], self.warm_start["u0"] = self.getWarmStart(x_opt, u_opt)
 
-        # self.lookUnderTheHood(x_opt, u_opt, ref_traj)
         if not self.mpc_solver.stats()["success"]:
-            print("=== FAILED:", self.mpc_solver.stats()["return_status"])
+            print("=== FAILED:", self.mpc_solver.stats()["return_status"], sol['g'].shape)
+            print("State", state)
+            print("Oppo", oppo_states)
+            # print(sol['g'][-(N+1):])
+            # print(x_opt[0,:]+sol['g'][-(N+1):])
+            # plt.figure()
+            # plt.plot(sol['g'])
+            # plt.plot(self.solver_args['lbg'])
+            # plt.plot(self.solver_args['ubg'])
+            # plt.legend(["g", "lbg", "ubg"])
+            # self.lookUnderTheHood(x_opt, u_opt, ref_traj)
+
+
         print("Compute Time", time.time()-t)
         return u_opt[0, 0], u_opt[1, 0]
 
     def lookUnderTheHood(self, x_opt, u_opt, ref_traj):
         """ Plot optimized trajectory compared to reference, for debugging """
-        import matplotlib.pyplot as plt 
         titles = ["s", "ey", "epsi", "vx", "vy", "omega", "delta", "accel", "delta_dot"]
         plt.figure(0, figsize=(15,8))
-        print(x_opt[:,:3])
 
         for i in range(7):
             plt.subplot(3,3,i+1)
@@ -575,6 +605,7 @@ class MPCController(Controller):
         a = input("Continue? ")
         if (a == 'n'):
             exit()
+
 
 class AdversarialMPCController(MPCController):
     def __init__(self,  veh_config, scene_config, control_config):
@@ -623,7 +654,9 @@ class AdversarialMPCController(MPCController):
         track = self.scene_config["track"]
         curvature = track.getCurvature(ref_traj[0,:])
         min_sdist = self.control_config["adversary_dist"]
-        oppo_ey = ref_traj[1,:] # If no adversary close, this becomes another ey tracking error term (becomes equivalent to vanilla MPC)
+        state_ref = np.hstack((state.reshape((STATE_DIM,1)), ref_traj[:STATE_DIM,1:]))
+
+        oppo_ey = state_ref[1,:] # If no adversary close, this becomes another ey tracking error term (becomes equivalent to vanilla MPC)
         for agent_ID in oppo_states:
             opp_state = oppo_states[agent_ID]
             opp_s, s = opp_state[0], state[0]
@@ -632,7 +665,7 @@ class AdversarialMPCController(MPCController):
                 oppo_ey = opp_state[1] * np.ones((1,ref_traj.shape[1]))
                 min_sdist = ds
 
-        state_ref = np.hstack((state.reshape((STATE_DIM,1)), ref_traj[:STATE_DIM,1:]))
+
         P_mat = np.vstack((state_ref, curvature, oppo_ey, ref_traj[STATE_DIM:]))
         return P_mat
 
@@ -667,7 +700,7 @@ class AdversarialMPCController(MPCController):
         """ Define terminal cost for modularity (adds cost term to block nearest opponent behind)""" 
         # Construct state cost matrix
         k_s = self.control_config["opt_k_s"]
-        k_ey = self.control_config["opt_k_ey"]
+        k_ey = self.control_config["adv_opt_k_ey"]
         k_epsi = self.control_config["opt_k_epsi"]
         k_vx = self.control_config["opt_k_vx"]
         k_vy = self.control_config["opt_k_vy"]
@@ -681,6 +714,38 @@ class AdversarialMPCController(MPCController):
         return (final_st - ref[:STATE_DIM]).T @ Q @ (final_st - ref[:STATE_DIM]) + \
                (final_st[1] - ref[STATE_DIM+1]).T @ k_ey_diff @ (final_st[1] - ref[STATE_DIM+1])
 
+    def configureInputConstraints(self):
+        """ Configure input constraints with lower vx max for velocity handicap """
+        T = self.control_config["T"]            # Prediction horizon
+        freq = self.control_config["opt_freq"]  # Optimization Frequency
+        N = int(T*freq)                         # Number of discretization steps
+
+        # print("Handicap ")
+        # Define state constraints
+        lbx = ca.DM.zeros((STATE_DIM*(N+1) + INPUT_DIM*N, 1))
+        ubx = ca.DM.zeros((STATE_DIM*(N+1) + INPUT_DIM*N, 1))
+        lbx[0 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["slow_states_lb"]["s"]
+        lbx[1 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["slow_states_lb"]["ey"]
+        lbx[2 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["slow_states_lb"]["epsi"]
+        lbx[3 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["slow_states_lb"]["vx"]
+        lbx[4 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["slow_states_lb"]["vy"]
+        lbx[5 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["slow_states_lb"]["omega"]
+        lbx[6 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["slow_states_lb"]["delta"]
+        ubx[0 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["slow_states_ub"]["s"]
+        ubx[1 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["slow_states_ub"]["ey"]
+        ubx[2 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["slow_states_ub"]["epsi"]
+        ubx[3 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["slow_states_ub"]["vx"]
+        ubx[4 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["slow_states_ub"]["vy"]
+        ubx[5 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["slow_states_ub"]["omega"]
+        ubx[6 : STATE_DIM*(N+1) : STATE_DIM] = self.control_config["slow_states_ub"]["delta"]
+
+        # Define input constraints
+        lbx[STATE_DIM*(N+1) : : INPUT_DIM] = self.control_config["slow_input_lb"]["accel"]
+        lbx[STATE_DIM*(N+1) + 1 : : INPUT_DIM] = self.control_config["slow_input_lb"]["ddelta"]
+        ubx[STATE_DIM*(N+1) : : INPUT_DIM] = self.control_config["slow_input_ub"]["accel"]
+        ubx[STATE_DIM*(N+1) + 1 : : INPUT_DIM] = self.control_config["slow_input_ub"]["ddelta"]
+
+        return lbx, ubx
 
 class SafeMPCController(MPCController):
     def __init__(self,  veh_config, scene_config, control_config):
@@ -771,6 +836,7 @@ class SafeMPCController(MPCController):
                 counter += 1
         state_ref = np.hstack((state.reshape((STATE_DIM,1)), ref_traj[:STATE_DIM,1:]))
         P_mat = np.vstack((state_ref, curvature, oppo_pos_mat, ref_traj[STATE_DIM:]))
+        # print(P_mat[STATE_DIM+1:-INPUT_DIM,:])
         return P_mat
 
     def configureConstraints(self):
@@ -786,9 +852,6 @@ class SafeMPCController(MPCController):
         ubg[STATE_DIM*(N+1):STATE_DIM*(N+1)+(N)] = self.veh_config["downforce_coeff"] * self.veh_config["m"] * 9.81 # Max force constraint
         lbg[STATE_DIM*(N+1)+(N):] = self.control_config["safe_opt_buffer"] + np.max([self.veh_config["lf"]+self.veh_config["lr"], 2*self.veh_config["half_width"]]) # Minimum distance from other agents
         ubg[STATE_DIM*(N+1)+(N):] = ca.inf
-
-        print(lbg)
-
         return lbg, ubg
 
     def updateStageCustomConstraints(self, g_custom, st, con, ref):
@@ -809,13 +872,18 @@ class SafeMPCController(MPCController):
 
 
     def inferIntentGP(self, state, opp_state):
-        vx = opp_state[3]
-        return opp_state + np.array([vx*self.control_config["T"]+0.5*0*9,0,0,0,0,0,0]) # TODO: Placeholder
+        vx,vy = opp_state[3:5]
+        # print("Opp State", opp_state)
+        print("Predicted", opp_state + np.array([vx*self.control_config["T"]+0.5*7.5*9,vy*self.control_config["T"],0,0,0,0,0]))
+        return opp_state + np.array([vx*self.control_config["T"]+0.5*7.5*9,vy*self.control_config["T"],0,0,0,0,0]) # TODO: Placeholder
+        # print("State:", state)
+        # print("Opp State:", opp_state)
         # gp_predicts = self.gpr.predict(state, opp_state)
-        # ds, dey = gp_predicts[:2] # where ds and dey are both from (state - future_opp_state)
+        # print("predict", gp_predicts)
         # future_opp_state = np.zeros(opp_state.shape)
-        # future_opp_state[:2] = state[:2] - gp_predicts[:2]
+        # future_opp_state[:2] = state[:2] - gp_predicts[:2]*6
         # future_opp_state[2:] = opp_state[2:]
+        # print("Future Opp State:", future_opp_state)
         # return future_opp_state
 
 if __name__ == "__main__":

@@ -82,6 +82,7 @@ class Simulator:
                     recompute_ctrl = True 
                 else:
                     recompute_ctrl = False
+                # print(agent.ID)
                 temp = agent_states.pop(agent.ID) # Remove own state to only contain opponents
                 agent.step(agent_states, recompute_control=recompute_ctrl)
                 agent_states[agent.ID] = temp
@@ -135,6 +136,10 @@ class Simulator:
                     collision_agents.update([agent.ID, oppo_agent.ID])
 
         return collision, list(collision_agents)
+
+    def addMeasurementNoise():
+        # TODO: Implement!
+        pass
     
 
     def exportSimData(self):
@@ -266,19 +271,20 @@ if __name__ == "__main__":
     agent3 = BicycleVehicle(veh_config, scene_config, x0_3, controller3, 3, color='g')
     # sim.addAgent(agent3)
 
-    x0_4 = np.array([0, 0, 0, 10, 0, 0, 0])
+    x0_4 = np.array([0, -15, 0, 5, 0, 0, 0])
     controller4 = SafeMPCController(veh_config, scene_config, cont_config)
     # controller4 = MPCController(veh_config, scene_config, cont_config)
     agent4 = BicycleVehicle(veh_config, scene_config, x0_4, controller4, 4, color='g', add_noise=False)
     sim.addAgent(agent4)
 
-    x0_5 = np.array([50, 10, 0, 3, 0, 0, 0])
+    x0_5 = np.array([10, -15, 0, 5, 0, 0, 0])
+    # controller5 = MPCController(veh_config, scene_config, cont_config)
     controller5 = AdversarialMPCController(veh_config, scene_config, cont_config)
     agent5 = BicycleVehicle(veh_config, scene_config, x0_5, controller5, 5, color='r')
     sim.addAgent(agent5)
     
     # sim.runSim(end_plot=True, animate=False, save=False, follow_agent_IDs=[None, 4])
-    sim.runSim(end_plot=True, animate=True, save=True, follow_agent_IDs=[4])
+    sim.runSim(end_plot=True, animate=True, save=True, follow_agent_IDs=[4,5])
     
 
     
