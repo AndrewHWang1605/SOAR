@@ -895,23 +895,23 @@ class SafeMPCController(MPCController):
             ds_curr = track.signedSDist(s, curr_opp_s)
             # ds_future = track.signedSDist(s, future_opp_s)
             ds_future = track.signedSDist(s, future_opp_3s_s)
-            if np.abs(ds_curr)<max_safe_opp_dist or np.abs(ds_future)<max_safe_opp_dist or (np.sign(ds_curr) != np.sign(ds_future)):
-                # Accounts for (1) current opp state unsafe, (2) future opp state unsafe, (3) curr/future state safe, BUT crosses ds=0 in between)
+            if np.abs(ds_curr)<max_safe_opp_dist or (np.sign(ds_curr) != np.sign(ds_future)):
+                # Accounts for (1) current opp state unsafe, (2) curr/future state safe, BUT crosses ds=0 in between)
                 # Add trajectory to be considered, interpolating between current and future opponent (s,ey)
                 interp_s = interpolate.interp1d(np.array([0, 2, 3]),
                                                 np.array([opp_position[0], future_opp_position_2s[0], future_opp_position_3s[0]]),
-                                                kind = 'linear')
+                                                kind = 'quadratic')
                 interp_ey = interpolate.interp1d(np.array([0, 2, 3]),
                                                 np.array([opp_position[1], future_opp_position_2s[1], future_opp_position_3s[1]]),
-                                                kind = 'linear')
+                                                kind = 'quadratic')
                 oppo_pos_mat[2*counter,:] = interp_s(np.arange(0, T+dt, dt))
                 oppo_pos_mat[2*counter+1,:] = interp_ey(np.arange(0, T+dt, dt))
-                print(opp_position)
-                print(future_opp_position_2s)
-                print(future_opp_position_3s)
-                plt.plot(oppo_pos_mat[2*counter,:])
-                plt.plot(oppo_pos_mat[2*counter+1,:])
-                plt.show()
+                # print(opp_position)
+                # print(future_opp_position_2s)
+                # print(future_opp_position_3s)
+                # plt.plot(oppo_pos_mat[2*counter,:])
+                # plt.plot(oppo_pos_mat[2*counter+1,:])
+                # plt.show()
                 # exit()
                 # np.linspace(opp_position, future_opp_position, ref_traj.shape[1]).T
                 if agent_ID not in self.agentID2ind:
@@ -922,6 +922,7 @@ class SafeMPCController(MPCController):
                 hist_ind = self.agentID2ind[agent_ID]
                 self.gp_pred_hist[self.current_timestep, hist_ind, :, :] = oppo_pos_mat[2*counter:2*(counter+1),:]
                 counter += 1
+
         state_ref = np.hstack((state.reshape((STATE_DIM,1)), ref_traj[:STATE_DIM,1:]))
         P_mat = np.vstack((state_ref, curvature, oppo_pos_mat, ref_traj[STATE_DIM:]))
         # print(P_mat[STATE_DIM+1:-INPUT_DIM,:])
