@@ -147,7 +147,7 @@ def get_controller_config(veh_config, scene_config):
     
     # Safe variant
     controller_config["safe_opt_max_num_opponents"] = 1
-    controller_config["safe_opt_buffer"] = 0.1             # m, distance away in both s and ey from opponents
+    controller_config["safe_opt_buffer"] = 0.2             # m, distance away in both s and ey from opponents
     controller_config["safe_opt_max_opp_dist"] = 200        # m, distance away before safely planning for opponent
 
     track_type = scene_config["track_config"]["track_type"]
