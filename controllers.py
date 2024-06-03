@@ -971,8 +971,8 @@ class SafeMPCController(MPCController):
         # print(np.round([stat e[0], opp_state[0], opp_state[0]-state[0], gp_avg_predicts[0]+(opp_state[0]-state[0]), -ds_for_opp_state], 2))
         future_opp_state = copy.deepcopy(opp_state)
         future_opp_state[:2] = state[:2] - gp_avg_predicts[:2]
-        # print(np.round([future_opp_state[0], opp_state[0]+ds_for_opp_state], 2))
-        # print(np.round([future_opp_state[1]], 2), dey_short, dey_long)
+        print(np.round([future_opp_state[0], opp_state[0]+ds_for_opp_state], 2))
+        print(np.round([future_opp_state[1]], 2), dey_short, dey_long)
         return future_opp_state
 
         # Return both

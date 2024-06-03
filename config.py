@@ -99,7 +99,7 @@ def get_scene_config(track_type=OVAL_TRACK):
     scene_config["track"] = track
     scene_config["track_config"] = track_config
     scene_config["dt"] = 0.001
-    scene_config["sim_time"] = 20
+    scene_config["sim_time"] = 10
 
     scene_config["anim_downsample_factor"] = 50
     scene_config["anim_window"] = 150
@@ -147,7 +147,7 @@ def get_controller_config(veh_config, scene_config):
     
     # Safe variant
     controller_config["safe_opt_max_num_opponents"] = 1
-    controller_config["safe_opt_buffer"] = 0.1             # m, distance away in both s and ey from opponents
+    controller_config["safe_opt_buffer"] = 0.2             # m, distance away in both s and ey from opponents
     controller_config["safe_opt_max_opp_dist"] = 200        # m, distance away before safely planning for opponent
 
     track_type = scene_config["track_config"]["track_type"]
