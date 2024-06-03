@@ -99,7 +99,7 @@ def get_scene_config(track_type=OVAL_TRACK):
     scene_config["track"] = track
     scene_config["track_config"] = track_config
     scene_config["dt"] = 0.001
-    scene_config["sim_time"] = 20
+    scene_config["sim_time"] = 25
 
     scene_config["anim_downsample_factor"] = 50
     scene_config["anim_window"] = 150
@@ -147,7 +147,7 @@ def get_controller_config(veh_config, scene_config):
     
     # Safe variant
     controller_config["safe_opt_max_num_opponents"] = 1
-    controller_config["safe_opt_buffer"] = 2              # m, distance away in both s and ey from opponents
+    controller_config["safe_opt_buffer"] = 0.25             # m, distance away in both s and ey from opponents
     controller_config["safe_opt_max_opp_dist"] = 200        # m, distance away before safely planning for opponent
 
     track_type = scene_config["track_config"]["track_type"]
@@ -193,7 +193,7 @@ def get_controller_config(veh_config, scene_config):
                                             "delta": max_steer }             # rad
     controller_config["slow_input_lb"] = {  "accel": -veh_config["max_accel"],
                                             "ddelta": -veh_config["max_steer_rate"] }
-    controller_config["slow_input_ub"] = {  "accel": 0.75*veh_config["max_accel"],
+    controller_config["slow_input_ub"] = {  "accel": 0.8*veh_config["max_accel"],
                                             "ddelta": veh_config["max_steer_rate"] }  
 
     controller_config["jumpstart_velo"] = 0.5 #m/s     
