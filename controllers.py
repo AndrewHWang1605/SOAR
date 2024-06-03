@@ -951,11 +951,13 @@ class SafeMPCController(MPCController):
         return future_opp_state
 
         # Return both
-        # future_opp_state_2s = copy.deepcopy(opp_state)
-        # future_opp_state_3s = copy.deepcopy(opp_state)
-        # future_opp_state_2s[:2] = state[:2] - gp_short_predicts[:2]
-        # future_opp_state_3s[:2] = state[:2] - gp_long_predicts[:2]
+        future_opp_state_2s = copy.deepcopy(opp_state)
+        future_opp_state_3s = copy.deepcopy(opp_state)
+        future_opp_state_2s[:2] = state[:2] - gp_short_predicts[:2]
+        future_opp_state_3s[:2] = state[:2] - gp_long_predicts[:2]
 
+        # return future_opp_state_2s
+        # return future_opp_state_3s
         # return future_opp_state_2s, future_opp_state_3s
 
 

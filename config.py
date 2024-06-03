@@ -99,7 +99,7 @@ def get_scene_config(track_type=OVAL_TRACK):
     scene_config["track"] = track
     scene_config["track_config"] = track_config
     scene_config["dt"] = 0.001
-    scene_config["sim_time"] = 15
+    scene_config["sim_time"] = 12
 
     scene_config["anim_downsample_factor"] = 50
     scene_config["anim_window"] = 150
@@ -140,7 +140,7 @@ def get_controller_config(veh_config, scene_config):
     # Inputs: accel, ddelta
 
     # Blind aggressive variant
-    aggressive_rating = 0 # [0,1] Tune: higher->more aggressive (0 equivalent to vanilla MPC, 1 ignores ref ey)
+    aggressive_rating = 1 # [0,1] Tune: higher->more aggressive (0 equivalent to vanilla MPC, 1 ignores ref ey)
     controller_config["adv_opt_k_ey"] = (1-aggressive_rating)*controller_config["opt_k_ey"]
     controller_config["k_ey_diff"] = aggressive_rating*controller_config["opt_k_ey"] 
     controller_config["adversary_dist"] = 200 # How far before opponent registers as close enough for adversarial action
