@@ -875,7 +875,6 @@ class SafeMPCController(MPCController):
             agent_ID = ordered_agent_ID[ind]
             opp_position = opp_pos[:, ind]
             future_opp_position = opp_future_pos[:, ind]
-            print("Curr->Future", opp_position, future_opp_position)
             curr_opp_s, future_opp_s, s = opp_position[0], future_opp_position[0], state[0]
             ds_curr = track.signedSDist(s, curr_opp_s)
             ds_future = track.signedSDist(s, future_opp_s)
@@ -892,7 +891,6 @@ class SafeMPCController(MPCController):
                         self.agentID2ind[agent_ID] = 1+np.max([self.agentID2ind[key] for key in self.agentID2ind])
                 hist_ind = self.agentID2ind[agent_ID]
                 self.gp_pred_hist[self.current_timestep, hist_ind, :, :] = oppo_pos_mat[2*counter:2*(counter+1),:]
-                print(oppo_pos_mat[2*counter:2*(counter+1),:])
                 counter += 1
         state_ref = np.hstack((state.reshape((STATE_DIM,1)), ref_traj[:STATE_DIM,1:]))
         P_mat = np.vstack((state_ref, curvature, oppo_pos_mat, ref_traj[STATE_DIM:]))
