@@ -305,7 +305,7 @@ if __name__ == "__main__":
     sim.addAgent(agent5)
     
     # sim.runSim(end_plot=True, animate=False, save=False, follow_agent_IDs=[None, 4])
-    sim.runSim(end_plot=False, animate=True, save=True, follow_agent_IDs=[4,5])
+    sim.runSim(end_plot=False, animate=True, save=True, follow_agent_IDs=[4])
     
 
     

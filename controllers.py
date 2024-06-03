@@ -28,6 +28,7 @@ import numpy as np
 import casadi as ca
 import time, copy
 import matplotlib.pyplot as plt 
+from scipy import interpolate
 
 from GPRegression import GPRegression
 
@@ -849,21 +850,30 @@ class SafeMPCController(MPCController):
         track = self.scene_config["track"]
         curvature = track.getCurvature(ref_traj[0,:])
 
+        T = self.control_config["T"]
+        freq = self.control_config["opt_freq"]
+        dt = 1.0/freq  
+
         # Find positions of all agents close enough to consider for safety (up to max_num_opponents agents)
         max_safe_opp_dist = self.control_config["safe_opt_max_opp_dist"]
         max_num_opponents = self.control_config["safe_opt_max_num_opponents"]
         oppo_pos_mat = max_safe_opp_dist*100 * np.ones((max_num_opponents*2, ref_traj.shape[1])) # Initialize (s,ey) to very far away by default to not affect opt
         opp_pos = np.zeros((2, len(oppo_states)))
-        opp_future_pos = np.zeros((2, len(oppo_states)))
+        # opp_future_pos = np.zeros((2, len(oppo_states)))
+        opp_future_pos_2s = np.zeros((2, len(oppo_states)))
+        opp_future_pos_3s = np.zeros((2, len(oppo_states)))
         # Iterate through to unpack oppo_states into a numpy array
         ordered_agent_ID = []
         i = 0
         for agent_ID in oppo_states:
             opp_state = oppo_states[agent_ID]
-            future_opp_state = self.inferIntentGP(state, opp_state)
-            # future_opp_state_2s, future_opp_state_3s = self.inferIntentGP(state, opp_state)
+            # future_opp_state = self.inferIntentGP(state, opp_state)
+            # opp_future_pos[:,i] = future_opp_state[:2]
+
+            future_opp_state_2s, future_opp_state_3s = self.inferIntentGP(state, opp_state)
+            opp_future_pos_2s[:,i] = future_opp_state_2s[:2]
+            opp_future_pos_3s[:,i] = future_opp_state_3s[:2]
             opp_pos[:,i] = opp_state[:2]
-            opp_future_pos[:,i] = future_opp_state[:2]
             ordered_agent_ID.append(agent_ID)
             i += 1
         if len(oppo_states) <= max_num_opponents: # Less opponents than max, so add them all if close enough
@@ -875,16 +885,35 @@ class SafeMPCController(MPCController):
         for ind in smallInd:
             agent_ID = ordered_agent_ID[ind]
             opp_position = opp_pos[:, ind]
-            future_opp_position = opp_future_pos[:, ind]
-            curr_opp_s, future_opp_s, s = opp_position[0], future_opp_position[0], state[0]
+            # future_opp_position = opp_future_pos[:, ind]
+            # curr_opp_s, future_opp_s, s = opp_position[0], future_opp_position[0], state[0]
+
+            future_opp_position_2s = opp_future_pos_2s[:, ind]
+            future_opp_position_3s = opp_future_pos_3s[:, ind]
+            curr_opp_s, future_opp_2s_s, future_opp_3s_s, s = opp_position[0], future_opp_position_2s[0], future_opp_position_3s[0], state[0]
+
             ds_curr = track.signedSDist(s, curr_opp_s)
-            ds_future = track.signedSDist(s, future_opp_s)
-            s_window_lb = -max_safe_opp_dist
-            s_window_ub = max_safe_opp_dist
+            # ds_future = track.signedSDist(s, future_opp_s)
+            ds_future = track.signedSDist(s, future_opp_3s_s)
             if np.abs(ds_curr)<max_safe_opp_dist or np.abs(ds_future)<max_safe_opp_dist or (np.sign(ds_curr) != np.sign(ds_future)):
                 # Accounts for (1) current opp state unsafe, (2) future opp state unsafe, (3) curr/future state safe, BUT crosses ds=0 in between)
                 # Add trajectory to be considered, interpolating between current and future opponent (s,ey)
-                oppo_pos_mat[2*counter:2*(counter+1),:] = np.linspace(opp_position, future_opp_position, ref_traj.shape[1]).T
+                interp_s = interpolate.interp1d(np.array([0, 2, 3]),
+                                                np.array([opp_position[0], future_opp_position_2s[0], future_opp_position_3s[0]]),
+                                                kind = 'linear')
+                interp_ey = interpolate.interp1d(np.array([0, 2, 3]),
+                                                np.array([opp_position[1], future_opp_position_2s[1], future_opp_position_3s[1]]),
+                                                kind = 'linear')
+                oppo_pos_mat[2*counter,:] = interp_s(np.arange(0, T+dt, dt))
+                oppo_pos_mat[2*counter+1,:] = interp_ey(np.arange(0, T+dt, dt))
+                print(opp_position)
+                print(future_opp_position_2s)
+                print(future_opp_position_3s)
+                plt.plot(oppo_pos_mat[2*counter,:])
+                plt.plot(oppo_pos_mat[2*counter+1,:])
+                plt.show()
+                # exit()
+                # np.linspace(opp_position, future_opp_position, ref_traj.shape[1]).T
                 if agent_ID not in self.agentID2ind:
                     if not self.agentID2ind:
                         self.agentID2ind[agent_ID] = 0
@@ -942,21 +971,21 @@ class SafeMPCController(MPCController):
         ds_long, dey_long = gp_long_predicts[0,:2]
 
         # Take the average
-        gp_avg_predicts = (gp_short_predicts[0] + gp_long_predicts[0]) / 2
-        # print(np.round([stat e[0], opp_state[0], opp_state[0]-state[0], gp_avg_predicts[0]+(opp_state[0]-state[0]), -ds_for_opp_state], 2))
-        future_opp_state = copy.deepcopy(opp_state)
-        future_opp_state[:2] = state[:2] - gp_avg_predicts[:2]
-        print(np.round([future_opp_state[0], opp_state[0]+ds_for_opp_state], 2))
-        print(np.round([future_opp_state[1]], 2), dey_short, dey_long)
-        return future_opp_state
+        # gp_avg_predicts = (gp_short_predicts[0] + gp_long_predicts[0]) / 2
+        # # print(np.round([stat e[0], opp_state[0], opp_state[0]-state[0], gp_avg_predicts[0]+(opp_state[0]-state[0]), -ds_for_opp_state], 2))
+        # future_opp_state = copy.deepcopy(opp_state)
+        # future_opp_state[:2] = state[:2] - gp_avg_predicts[:2]
+        # print(np.round([future_opp_state[0], opp_state[0]+ds_for_opp_state], 2))
+        # print(np.round([future_opp_state[1]], 2), dey_short, dey_long)
+        # return future_opp_state
 
         # Return both
-        # future_opp_state_2s = copy.deepcopy(opp_state)
-        # future_opp_state_3s = copy.deepcopy(opp_state)
-        # future_opp_state_2s[:2] = state[:2] - gp_short_predicts[:2]
-        # future_opp_state_3s[:2] = state[:2] - gp_long_predicts[:2]
+        future_opp_state_2s = copy.deepcopy(opp_state)
+        future_opp_state_3s = copy.deepcopy(opp_state)
+        future_opp_state_2s[:2] = state[:2] - gp_short_predicts[:2]
+        future_opp_state_3s[:2] = state[:2] - gp_long_predicts[:2]
 
-        # return future_opp_state_2s, future_opp_state_3s
+        return future_opp_state_2s, future_opp_state_3s
 
 
 if __name__ == "__main__":
