@@ -858,7 +858,7 @@ class SafeMPCController(MPCController):
         # Find positions of all agents close enough to consider for safety (up to max_num_opponents agents)
         max_safe_opp_dist = self.control_config["safe_opt_max_opp_dist"]
         max_num_opponents = self.control_config["safe_opt_max_num_opponents"]
-        oppo_pos_mat = max_safe_opp_dist*100 * np.ones((max_num_opponents*2, ref_traj.shape[1])) # Initialize (s,ey) to very far away by default to not affect opt
+        oppo_pos_mat = max_safe_opp_dist*2 * np.ones((max_num_opponents*2, ref_traj.shape[1])) # Initialize (s,ey) to very far away by default to not affect opt
         opp_pos = np.zeros((2, len(oppo_states)))
         opp_future_pos = np.zeros((2, len(oppo_states)))
         # opp_future_pos_2s = np.zeros((2, len(oppo_states)))
