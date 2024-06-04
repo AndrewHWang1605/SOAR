@@ -530,8 +530,8 @@ class MPCController(Controller):
         """
         Calculate next input (rear wheel commanded acceleration, derivative of steering angle) 
         """
-        # print("State", state)
-        # print("Oppo", oppo_states)
+        print("State", state)
+        print("Oppo", oppo_states)
         t = time.time()
         if (state[3] < self.control_config["jumpstart_velo"]): # Handles weirdness at very low speeds (accelerates to small velo, then controller kicks in)
             return self.control_config["input_ub"]["accel"], 0
@@ -745,7 +745,6 @@ class AdversarialMPCController(MPCController):
         freq = self.control_config["opt_freq"]  # Optimization Frequency
         N = int(T*freq)                         # Number of discretization steps
 
-        # print("Handicap ")
         # Define state constraints
         lbx = ca.DM.zeros((STATE_DIM*(N+1) + INPUT_DIM*N, 1))
         ubx = ca.DM.zeros((STATE_DIM*(N+1) + INPUT_DIM*N, 1))
