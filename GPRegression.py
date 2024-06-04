@@ -121,7 +121,7 @@ class GPRegression():
         start_time = time.time()
         mean_prediction, std_prediction = self.GP.predict(random_data, return_std=True)
         end_time = time.time()
-        print(np.round(end_time-start_time, 3))
+        # print(np.round(end_time-start_time, 3))
         if end_plot:
             self.plotPredictions(random_output, mean_prediction, std_prediction)
 
@@ -148,24 +148,26 @@ class GPRegression():
         titles = np.array(["ds", "dey", "epsi", "vx", "vy", "omega"])
         elements = output.shape[1]
         titles = titles[:elements]
-        normalized_data = np.divide(mean_prediction - output, output)
-        counts = np.arange(normalized_data.shape[0])
-        plt.figure(0, figsize=(15,8))
-        for i in range(elements):
-            plt.subplot(2,2,i+1)
-            plt.plot(normalized_data[:,i])
-            # plt.scatter(counts, normalized_data[:,i])
-            plt.title(titles[i] + " normalized error")
+        counts = np.arange(mean_prediction.shape[0])
+        # plt.figure(0, figsize=(15,8))
+        # for i in range(elements):
+        #     plt.subplot(2,2,i+1)
+        #     # plt.plot(output[:,i], label="Training data")
+        #     # plt.plot(mean_prediction[:,i], label="Mean prediction")
+        #     plt.scatter(counts, output[:,i], label="Training data", marker=".", s=25)
+        #     plt.scatter(counts, mean_prediction[:,i], label="Mean prediction", marker=".", s=25)
+        #     plt.title(titles[i] + "prediction vs. actual")
 
+        mean_prediction[:,1] = mean_prediction[:,1] + 15
+        output[:,1] = output[:,1] + 15
+        normalized_data = np.abs(np.divide(mean_prediction - output, output))
         plt.figure(1, figsize=(15,8))
         for i in range(elements):
             plt.subplot(2,2,i+1)
-            plt.plot(output[:,i], label="Training data")
-            plt.plot(mean_prediction[:,i], label="Mean prediction")
-            # plt.scatter(counts, output[:,i], label="Training data")
-            # plt.scatter(counts, mean_prediction[:,i], label="Mean prediction")
-            plt.title(titles[i])
-
+            # plt.plot(normalized_data[:,i])
+            plt.scatter(counts, normalized_data[:,i], marker=".", s=25)
+            plt.title(titles[i] + " Normalized Error")
+        print(np.mean(normalized_data,axis=0))
         plt.show()
     
 
@@ -342,21 +344,30 @@ if __name__ == "__main__":
     scene_config = get_scene_config()
     gpr = GPRegression(GP_config, scene_config)
 
-    sim_counts = np.arange(1,241)
+    # sim_counts = np.arange(1,241)
+    # file_path = "train_data/ADV_handicap_data"
+    # gpr.importSimData(file_path, sim_counts)
+    # start_time = time.time()
+    # gpr.trainGP()
+    # gpr.exportGP("gp_models/ADV_handicap/test.pkl")
+    # end_time = time.time()
+    # print(np.round(end_time - start_time, 3))
+
+    gpr.importGP("gp_models/ADV_handicap/model_5k_250_3-0_ADV.pkl")
+    # gpr.importGP("gp_models/ADV_handicap/model_5k_150_2-0_ADV.pkl")
+    sim_counts = np.random.randint(1,241, 10) #np.arange(11,20)
     file_path = "train_data/ADV_handicap_data"
     gpr.importSimData(file_path, sim_counts)
-    gpr.trainGP()
-    gpr.exportGP("gp_models/ADV_handicap/model_5k_250_3-0_ADV.pkl")
+    gpr.testPredict(end_plot=True)
 
-    # gpr.importGP("gp_models/new/model_1k_200_1-5_ADV_straight.pkl")
-    # sim_counts = np.arange(11,20)
-    # file_path = "train_data/ADV_test_data"
-    # gpr.importSimData(file_path, sim_counts)
-    # gpr.testPredict(end_plot=True)
-    ego = np.array([0.25, 0, 0, 10, 0, 0, 0])
-    opp = np.array([50, 10, 0, 10, 0, 0, 0])
-    prediction = gpr.predict(ego, opp)
-    print(prediction)
+    # gpr1 = GPRegression(GP_config, scene_config)
+    # gpr1.importGP("gp_models/ADV_handicap/model_5k_150_2-0_ADV.pkl")
+    # ego = np.array([0, 0, 0, 0, 0, 0, 0])
+    # opp = np.array([30, -12, 0, 0, 0, 0, 0])
+    # print(ego)
+    # print(opp)
+    # prediction = gpr.predict(ego, opp)*0.36 + gpr1.predict(ego,opp)*0.64
+    # print(prediction)
 
 
     """GP setup code to create class instance and import GP object"""

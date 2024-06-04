@@ -146,7 +146,7 @@ def get_controller_config(veh_config, scene_config):
     controller_config["adversary_dist"] = 200 # How far before opponent registers as close enough for adversarial action
     
     # Safe variant
-    controller_config["safe_opt_max_num_opponents"] = 2
+    controller_config["safe_opt_max_num_opponents"] = 1
     controller_config["safe_opt_buffer"] = 0.2              # m, distance away in both s and ey from opponents
     controller_config["safe_opt_max_opp_dist"] = 200        # m, distance away before safely planning for opponent
     controller_config["pred_ey_hold_steps"] = int(1 * controller_config["opt_freq"]) # Number of steps to hold ey estimate steady
@@ -211,8 +211,8 @@ def get_GP_config():
 
     GP_config["sample_count"] = 5000           # samples when fitting/training
     GP_config["sample_attempt_repeat"] = 10     # attempts when random sampling
-    GP_config["ds_bound"] = 250                # distance b/w agents in s
-    GP_config["lookahead"] = 3.0             # seconds of lookahead
+    GP_config["ds_bound"] = 150                # distance b/w agents in s
+    GP_config["lookahead"] = 2.0             # seconds of lookahead
 
     GP_config["test_count"] = 100               # samples when testing
 

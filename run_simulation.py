@@ -302,30 +302,30 @@ if __name__ == "__main__":
 
     # Max speed PID controller
     # x0_2 = np.array([0, 0, 0, 0, 0, 0, 0]) # Qualifying lap
-    # x0_2 =  np.array([0, 0, 0, 10, 0, 0, 0]) # Straight overtake
-    x0_2 =  np.array([650, 0, 0, 40, 0, 0, 0])  # Faster curve overtake
+    x0_2 =  np.array([0, 0, 0, 5, 0, 0, 0]) # Straight overtake
+    # x0_2 =  np.array([650, 0, 0, 40, 0, 0, 0])  # Faster curve overtake
     controller2 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=85)
     agent2 = BicycleVehicle(veh_config, scene_config, x0_2, controller2, 2, color='b')
-    # sim.addAgent(agent2)
+    sim.addAgent(agent2)
 
     # Vanilla MPC controller
     # x0_3 = np.array([-30, 0, 0, 30, 0, 0, 0])
     # x0_3 = np.array([0, 0, 0, 0, 0, 0, 0]) # Qualifying lap
-    # x0_3 =  np.array([0, 0, 0, 10, 0, 0, 0]) # Straight overtake
+    # x0_3 =  np.array([0, 0, 0, 5, 0, 0, 0]) # Straight overtake
     x0_3 =  np.array([650, 0, 0, 40, 0, 0, 0])  # Faster curve overtake
     controller3 = MPCController(veh_config, scene_config, cont_config)
     agent3 = BicycleVehicle(veh_config, scene_config, x0_3, controller3, 3, color='m')
     # sim.addAgent(agent3)
 
     # x0_4 =  np.array([920, 0, 0, 10, 0, 0, 0]) # Nice overtake
-    # x0_4 =  np.array([650, 0, 0, 40, 0, 0, 0])  # Faster curve overtake
-    x0_4 =  np.array([0, 0, 0, 5, 0, 0, 0]) # Straight overtake
+    x0_4 =  np.array([650, 0, 0, 40, 0, 0, 0])  # Faster curve overtake
+    # x0_4 =  np.array([0, 0, 0, 5, 0, 0, 0]) # Straight overtake
     # x0_4 =  np.array([-50, 5, 0, 0, 0, 0, 0]) # Experimenting
     # x0_4 = np.array([0, 0, 0, 0, 0, 0, 0]) # Qualifying lap
     controller4 = SafeMPCController(veh_config, scene_config, cont_config)
     # controller4 = MPCController(veh_config, scene_config, cont_config)
     agent4 = BicycleVehicle(veh_config, scene_config, x0_4, controller4, 4, color='g', add_noise=False)
-    sim.addAgent(agent4)
+    # sim.addAgent(agent4)
 
     # x0_5 = np.array([960, 0, 0, 10, 0, 0, 0]) # Nice overtake
     # x0_5 = np.array([725, 0, 0, 40, 0, 0, 0])  # Faster curve overtake
@@ -336,7 +336,7 @@ if __name__ == "__main__":
     sim.addAgent(agent5)
 
     # x0_6 = np.array([300, -12, 0, 5, 0, 0, 0])
-    # # x0_5 = np.array([1000, -5, 0, 5, 0, 0, 0])
+    # # x0_6 = np.array([1000, -5, 0, 5, 0, 0, 0])
     # controller6 = AdversarialMPCController(veh_config, scene_config, cont_config)
     # agent6 = BicycleVehicle(veh_config, scene_config, x0_6, controller6, 6, color='b')
     # sim.addAgent(agent6)
@@ -349,7 +349,7 @@ if __name__ == "__main__":
     
     
     # sim.runSim(end_plot=True, animate=True, save=True, follow_agent_IDs=[2], qualifying=True)
-    sim.runSim(end_plot=True, animate=True, save=True, follow_agent_IDs=[4,5], qualifying=False)
+    sim.runSim(end_plot=True, animate=True, save=True, follow_agent_IDs=[2,5], qualifying=False)
     # sim.runSim(end_plot=True, animate=False, save=False, follow_agent_IDs=[None, 4])
     # sim.runSim(end_plot=False, animate=True, save=True, follow_agent_IDs=[4,5])
     
