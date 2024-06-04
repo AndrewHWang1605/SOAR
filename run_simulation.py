@@ -318,7 +318,7 @@ if __name__ == "__main__":
     # sim.addAgent(agent3)
 
     # x0_4 =  np.array([920, 0, 0, 10, 0, 0, 0]) # Nice overtake
-    x0_4 =  np.array([620, 0, 0, 30, 0, 0, 0])  # Faster curve overtake
+    x0_4 =  np.array([650, 0, 0, 30, 0, 0, 0])  # Faster curve overtake
     # x0_4 =  np.array([0, 0, 0, 10, 0, 0, 0]) # Straight overtake
     # x0_4 =  np.array([-50, 5, 0, 0, 0, 0, 0]) # Experimenting
     # x0_4 = np.array([0, 0, 0, 0, 0, 0, 0]) # Qualifying lap
@@ -328,7 +328,7 @@ if __name__ == "__main__":
     sim.addAgent(agent4)
 
     # x0_5 = np.array([960, 0, 0, 10, 0, 0, 0]) # Nice overtake
-    x0_5 = np.array([675, 0, 0, 30, 0, 0, 0])  # Faster curve overtake
+    x0_5 = np.array([725, 0, 0, 30, 0, 0, 0])  # Faster curve overtake
     # x0_5 =  np.array([70, 10, 0, 10, 0, 0, 0]) # Straight overtake
     # x0_5 =  np.array([30, -12, 0, 0, 0, 0, 0]) # Experimenting
     controller5 = AdversarialMPCController(veh_config, scene_config, cont_config)
@@ -349,7 +349,7 @@ if __name__ == "__main__":
     
     
     # sim.runSim(end_plot=True, animate=True, save=True, follow_agent_IDs=[2], qualifying=True)
-    sim.runSim(end_plot=True, animate=True, save=True, follow_agent_IDs=[3,5], qualifying=False)
+    sim.runSim(end_plot=True, animate=True, save=True, follow_agent_IDs=[4,5], qualifying=False)
     # sim.runSim(end_plot=True, animate=False, save=False, follow_agent_IDs=[None, 4])
     # sim.runSim(end_plot=False, animate=True, save=True, follow_agent_IDs=[4,5])
     
