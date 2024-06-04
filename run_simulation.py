@@ -292,16 +292,18 @@ if __name__ == "__main__":
     # sim.addAgent(agent3)
 
     # x0_4 =  np.array([920, 0, 0, 10, 0, 0, 0]) # Nice overtake
-    x0_4 =  np.array([650, 0, 0, 40, 0, 0, 0]) 
-    # x0_4 =  np.array([0, 0, 0, 10, 0, 0, 0])
+    # x0_4 =  np.array([650, 0, 0, 40, 0, 0, 0])  # Faster overtake
+    # x0_4 =  np.array([0, 0, 0, 10, 0, 0, 0]) # Straight overtake
+    x0_4 =  np.array([-20, 5, 0, 0, 0, 0, 0]) # Start race
     controller4 = SafeMPCController(veh_config, scene_config, cont_config)
     # controller4 = MPCController(veh_config, scene_config, cont_config)
     agent4 = BicycleVehicle(veh_config, scene_config, x0_4, controller4, 4, color='g', add_noise=False)
     sim.addAgent(agent4)
 
     # x0_5 = np.array([960, 0, 0, 10, 0, 0, 0]) # Nice overtake
-    x0_5 = np.array([725, 0, 0, 40, 0, 0, 0]) 
-    # x0_5 =  np.array([70, 10, 0, 10, 0, 0, 0])
+    # x0_5 = np.array([725, 0, 0, 40, 0, 0, 0])  # Faster overtake
+    # x0_5 =  np.array([70, 10, 0, 10, 0, 0, 0]) # Straight overtake
+    x0_5 =  np.array([0, -5, 0, 0, 0, 0, 0]) # Start race
     controller5 = AdversarialMPCController(veh_config, scene_config, cont_config)
     agent5 = BicycleVehicle(veh_config, scene_config, x0_5, controller5, 5, color='r')
     sim.addAgent(agent5)
