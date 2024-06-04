@@ -26,6 +26,7 @@ Implement various agents
 """
 import numpy as np
 import copy
+import time
 
 class Agent:
     def __init__(self, veh_config, scene_config, x0, controller, ID=999, color='k', add_noise=False):
@@ -39,6 +40,7 @@ class Agent:
         self.last_ddelta = None
         self.color = color
         self.add_noise = add_noise
+        self.lap_count = 1
 
         self.initHistories()
 
@@ -53,6 +55,7 @@ class Agent:
         self.x_global_hist = np.zeros((timesteps+1, 7))
         self.x_global_hist[0,:] = np.array([self.scene_config["track"].CLtoGlobal(self.x)])
         self.u_hist = np.zeros((timesteps, 2))
+        self.compute_runtime_hist = []
 
     # Helper function for animation
     def assignPatch(self, patch):
@@ -100,9 +103,11 @@ class BicycleVehicle(Agent):
     """
     def step(self, oppo_states, recompute_control=False):
         if recompute_control:
+            t = time.time()
             accel, delta_dot = self.controller.computeControl(self.x_hist[self.current_timestep], oppo_states, self.current_timestep*self.dt)
             accel, delta_dot = self.saturateInputs(accel, delta_dot)
             self.last_accel, self.last_ddelta = accel, delta_dot
+            self.compute_runtime_hist.append(time.time() - t)
         else:
             accel, delta_dot = self.last_accel, self.last_ddelta
 
@@ -116,7 +121,12 @@ class BicycleVehicle(Agent):
         self.x_global_hist[self.current_timestep+1, :] = copy.deepcopy(self.x_global)
         self.u_hist[self.current_timestep, :] = np.array([accel, delta_dot])
         self.current_timestep += 1
-        return x_new
+
+        lap_completed = None
+        if (self.x[0] // self.scene_config["track"].total_len + 1 != self.lap_count):
+            lap_completed = self.lap_count
+            self.lap_count = self.x[0] // self.scene_config["track"].total_len + 1
+        return x_new, lap_completed
     
     # Steps forward dynamics of vehicle one discrete timestep
     def dynamics(self, x, accel, delta_dot):
