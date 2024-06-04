@@ -99,7 +99,7 @@ def get_scene_config(track_type=OVAL_TRACK):
     scene_config["track"] = track
     scene_config["track_config"] = track_config
     scene_config["dt"] = 0.001
-    scene_config["sim_time"] = 40
+    scene_config["sim_time"] = 15
 
     scene_config["anim_downsample_factor"] = 50
     scene_config["anim_window"] = 150
@@ -147,8 +147,9 @@ def get_controller_config(veh_config, scene_config):
     
     # Safe variant
     controller_config["safe_opt_max_num_opponents"] = 1
-    controller_config["safe_opt_buffer"] = 0.2             # m, distance away in both s and ey from opponents
+    controller_config["safe_opt_buffer"] = 0.2              # m, distance away in both s and ey from opponents
     controller_config["safe_opt_max_opp_dist"] = 200        # m, distance away before safely planning for opponent
+    controller_config["pred_ey_hold_steps"] = int(1 * controller_config["opt_freq"]) # Number of steps to hold ey estimate steady
 
     track_type = scene_config["track_config"]["track_type"]
     if track_type == OVAL_TRACK:
@@ -187,8 +188,8 @@ def get_controller_config(veh_config, scene_config):
     controller_config["slow_states_ub"] = { "s": ca.inf,                     # m
                                             "ey": track_half_width,          # m
                                             "epsi": 10*np.pi/180,            # rad
-                                            "vx": 70,                        # m/s
-                                            "vy": 400,                         # m/s
+                                            "vx": 400,                        # m/s
+                                            "vy": 4,                         # m/s
                                             "omega": 1,                      # rad/s
                                             "delta": max_steer }             # rad
     controller_config["slow_input_lb"] = {  "accel": -veh_config["max_accel"],
