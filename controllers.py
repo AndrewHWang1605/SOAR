@@ -967,21 +967,22 @@ class SafeMPCController(MPCController):
         ds_long, dey_long = gp_long_predicts[0,:2]
 
         # Take the average
-        gp_avg_predicts = (gp_short_predicts[0] + gp_long_predicts[0]) / 2
+        # gp_avg_predicts = (gp_short_predicts[0] + gp_long_predicts[0]) / 2
+        gp_avg_predicts = 0.64*gp_short_predicts[0] + 0.36*gp_long_predicts[0]
         # print(np.round([stat e[0], opp_state[0], opp_state[0]-state[0], gp_avg_predicts[0]+(opp_state[0]-state[0]), -ds_for_opp_state], 2))
         future_opp_state = copy.deepcopy(opp_state)
         future_opp_state[:2] = state[:2] - gp_avg_predicts[:2]
-        print(np.round([future_opp_state[0], opp_state[0]+ds_for_opp_state], 2))
-        print(np.round([future_opp_state[1]], 2), dey_short, dey_long)
+        # print(np.round([future_opp_state[0], opp_state[0]+ds_for_opp_state], 2))
+        # print(np.round([future_opp_state[1]], 2), dey_short, dey_long)
         return future_opp_state
 
         # Return both
-        # future_opp_state_2s = copy.deepcopy(opp_state)
-        # future_opp_state_3s = copy.deepcopy(opp_state)
-        # future_opp_state_2s[:2] = state[:2] - gp_short_predicts[:2]
-        # future_opp_state_3s[:2] = state[:2] - gp_long_predicts[:2]
+        future_opp_state_2s = copy.deepcopy(opp_state)
+        future_opp_state_3s = copy.deepcopy(opp_state)
+        future_opp_state_2s[:2] = state[:2] - gp_short_predicts[:2]
+        future_opp_state_3s[:2] = state[:2] - gp_long_predicts[:2]
 
-        # return future_opp_state_2s
+        return future_opp_state_2s
         # return future_opp_state_3s
         # return future_opp_state_2s, future_opp_state_3s
 
