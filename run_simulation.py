@@ -253,7 +253,7 @@ class Simulator:
 
 
                 controller = agent.controller
-                time_ind = int(np.floor((i*self.scene_config["anim_downsample_factor"]*self.dt - 0.05) / agent.controller.ctrl_period))
+                time_ind = int(np.round((i*self.scene_config["anim_downsample_factor"]*self.dt - 0.05) / agent.controller.ctrl_period))
                 if agent.controller.controller_type == "safe_mpc":
                     gp_pred_hist = agent.controller.gp_pred_hist[time_ind]
                     for agentID in controller.agentID2ind:
@@ -299,7 +299,8 @@ if __name__ == "__main__":
     # sim.addAgent(agent1)
 
     # Max speed PID controller
-    x0_2 = np.array([0, 0, 0, 0, 0, 0, 0]) # Qualifying lap
+    # x0_2 = np.array([0, 0, 0, 0, 0, 0, 0]) # Qualifying lap
+    x0_2 =  np.array([0, 0, 0, 10, 0, 0, 0]) # Straight overtake
     controller2 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=85)
     agent2 = BicycleVehicle(veh_config, scene_config, x0_2, controller2, 2, color='b')
     # sim.addAgent(agent2)
@@ -323,8 +324,8 @@ if __name__ == "__main__":
 
     # x0_5 = np.array([960, 0, 0, 10, 0, 0, 0]) # Nice overtake
     # x0_5 = np.array([725, 0, 0, 40, 0, 0, 0])  # Faster overtake
-    # x0_5 =  np.array([70, 10, 0, 10, 0, 0, 0]) # Straight overtake
-    x0_5 =  np.array([30, -12, 0, 0, 0, 0, 0]) # Experimenting
+    x0_5 =  np.array([70, 10, 0, 10, 0, 0, 0]) # Straight overtake
+    # x0_5 =  np.array([30, -12, 0, 0, 0, 0, 0]) # Experimenting
     controller5 = AdversarialMPCController(veh_config, scene_config, cont_config)
     agent5 = BicycleVehicle(veh_config, scene_config, x0_5, controller5, 5, color='r')
     sim.addAgent(agent5)
