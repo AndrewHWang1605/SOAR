@@ -881,7 +881,7 @@ class SafeMPCController(MPCController):
         if len(oppo_states) <= max_num_opponents: # Less opponents than max, so add them all if close enough
             smallInd = np.arange(0, len(oppo_states), 1)
         else: # Need to look through and find the closest max_num_opponents agents that fulfill criteria to be considered
-            smallInd = np.argpartition(opp_future_pos[0,:] - state[0], max_num_opponents)[:max_num_opponents]
+            smallInd = np.argpartition(opp_pos[0,:] - state[0], max_num_opponents)[:max_num_opponents]
         # Loop through and add all positions if close enough
         counter = 0
         for ind in smallInd:
