@@ -54,7 +54,7 @@ class Simulator:
     def addAgent(self, agent):
         self.agents.append(agent)
 
-    def runSim(self, end_plot=False, animate=False, save=False, follow_agent_IDs=[None]):
+    def runSim(self, end_plot=False, animate=False, save=False, follow_agent_IDs=[None], qualifying=False):
         print("\nStarting simulation at dt=" + str(self.dt) + " for " + str(self.sim_time) + " seconds")
 
         retVal = True
@@ -75,6 +75,7 @@ class Simulator:
                 retVal = False
                 break
 
+            early_terminate = False
             for agent in self.agents:
                 if agent.controller.ctrl_period == None: # Run at every timestep
                     recompute_ctrl = True 
@@ -84,13 +85,20 @@ class Simulator:
                     recompute_ctrl = False
                 # print(agent.ID)
                 temp = agent_states.pop(agent.ID) # Remove own state to only contain opponents
-                agent.step(agent_states, recompute_control=recompute_ctrl)
+                x_new, lap_completed = agent.step(agent_states, recompute_control=recompute_ctrl)
+                if lap_completed is not None:
+                    print("Lap {} Completed at time {}".format(lap_completed, self.t_hist[i]))
+                    if qualifying:
+                        early_terminate = True
                 agent_states[agent.ID] = temp
+            if early_terminate:
+                break
 
         self.t_hist = self.t_hist[:i+2] # Trim off extra timesteps
 
         if self.sim_success:
             print("Finished simulation: ", sim_steps, " timesteps passed\n")
+            self.calcRuntimeStats()
         if end_plot:
             self.plotCLStates()
             self.plotAgentTrack()
@@ -100,8 +108,8 @@ class Simulator:
                 anim = self.animateRace(follow_agent_ID=follow_ID)
                 if save:
                     writergif = animation.PillowWriter(fps=30)
-                    anim.save('filename.gif',writer=writergif)
-                    # anim.save("./videos/race_video_{}.mp4".format("agent"+str(follow_ID) if follow_ID is not None else "global"))
+                    # anim.save('filename.gif',writer=writergif)
+                    anim.save("./videos/race_video_{}.mp4".format("agent"+str(follow_ID) if follow_ID is not None else "global"))
                 else:
                     plt.show()
         return retVal
@@ -160,6 +168,15 @@ class Simulator:
             # sim_data["u" + str(agent.ID)] = np.array2string(agent.getControlHistory(), separator=',', suppress_small=True)
 
         return sim_data
+
+    def calcRuntimeStats(self):
+        for agent in self.agents:
+            runtime_hist = agent.compute_runtime_hist
+            mean = np.mean(runtime_hist)
+            std = np.std(runtime_hist)
+            max_val = np.max(runtime_hist)
+            min_val = np.min(runtime_hist[75:]) # Exclude the beginning when we just naively accelerate
+            print("Agent {} Runtime: Mean {}, Std {}, Max {}, Min {}".format(agent.ID, mean, std, max_val, min_val))
 
 
     def plotCLStates(self):
@@ -275,33 +292,33 @@ if __name__ == "__main__":
     sim = Simulator(scene_config)
     
     # Stationary obstacle
-    x0_1 = np.array([20, 0, 0, 0, 0, 0, 0])
+    x0_1 = np.array([0, 0, 0, 0, 0, 0, 0])
     controller1 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=0)
     agent1 = BicycleVehicle(veh_config, scene_config, x0_1, controller1, 1, color='b')
     # sim.addAgent(agent1)
 
     # Max speed PID controller
     x0_2 = np.array([0, 0, 0, 0, 0, 0, 0]) # Qualifying lap
-    controller2 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=75)
-    agent2 = BicycleVehicle(veh_config, scene_config, x0_2, controller2, 2, color='r')
-    sim.addAgent(agent2)
+    controller2 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=85)
+    agent2 = BicycleVehicle(veh_config, scene_config, x0_2, controller2, 2, color='b')
+    # sim.addAgent(agent2)
 
-    x0_3 = np.array([-30, 0, 0, 30, 0, 0, 0])
-    # controller3 = ConstantVelocityController(veh_config, scene_config, cont_config)
-    # controller3 = NominalOptimalController(veh_config, scene_config, cont_config, "race_lines/oval_raceline.npz")
+    # Vanilla MPC controller
+    # x0_3 = np.array([-30, 0, 0, 30, 0, 0, 0])
+    x0_3 = np.array([0, 0, 0, 0, 0, 0, 0]) # Qualifying lap
     controller3 = MPCController(veh_config, scene_config, cont_config)
-    # controller3 = AdversarialMPCController(veh_config, scene_config, cont_config)
-    agent3 = BicycleVehicle(veh_config, scene_config, x0_3, controller3, 3, color='g')
+    agent3 = BicycleVehicle(veh_config, scene_config, x0_3, controller3, 3, color='m')
     # sim.addAgent(agent3)
 
     # x0_4 =  np.array([920, 0, 0, 10, 0, 0, 0]) # Nice overtake
     # x0_4 =  np.array([650, 0, 0, 40, 0, 0, 0])  # Faster overtake
     # x0_4 =  np.array([0, 0, 0, 10, 0, 0, 0]) # Straight overtake
-    x0_4 =  np.array([-50, 5, 0, 0, 0, 0, 0]) # Experimenting
+    # x0_4 =  np.array([-50, 5, 0, 0, 0, 0, 0]) # Experimenting
+    x0_4 = np.array([0, 0, 0, 0, 0, 0, 0]) # Qualifying lap
     controller4 = SafeMPCController(veh_config, scene_config, cont_config)
     # controller4 = MPCController(veh_config, scene_config, cont_config)
     agent4 = BicycleVehicle(veh_config, scene_config, x0_4, controller4, 4, color='g', add_noise=False)
-    # sim.addAgent(agent4)
+    sim.addAgent(agent4)
 
     # x0_5 = np.array([960, 0, 0, 10, 0, 0, 0]) # Nice overtake
     # x0_5 = np.array([725, 0, 0, 40, 0, 0, 0])  # Faster overtake
@@ -324,8 +341,9 @@ if __name__ == "__main__":
     # sim.addAgent(agent7)
     
     
+    # sim.runSim(end_plot=True, animate=True, save=True, follow_agent_IDs=[2], qualifying=True)
+    sim.runSim(end_plot=False, animate=True, save=True, follow_agent_IDs=[4], qualifying=True)
     # sim.runSim(end_plot=True, animate=False, save=False, follow_agent_IDs=[None, 4])
-    sim.runSim(end_plot=False, animate=True, save=True, follow_agent_IDs=[4,5])
+    # sim.runSim(end_plot=False, animate=True, save=True, follow_agent_IDs=[4,5])
     
-
     
