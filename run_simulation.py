@@ -95,10 +95,11 @@ class Simulator:
                 break
 
         self.t_hist = self.t_hist[:i+2] # Trim off extra timesteps
+        self.calcRuntimeStats()
+
 
         if self.sim_success:
             print("Finished simulation: ", sim_steps, " timesteps passed\n")
-            self.calcRuntimeStats()
         if end_plot:
             self.plotCLStates()
             self.plotAgentTrack()
@@ -187,21 +188,21 @@ class Simulator:
             u_hist = agent.getControlHistory()
             for i in range(7):
                 plt.subplot(3,3,i+1)
-                plt.plot(self.t_hist[:x_hist.shape[0]], x_hist[:,i])
+                plt.plot(self.t_hist[:x_hist.shape[0]], x_hist[:,i], color=agent.color)
                 plt.title(titles[i])
             for i in range(7,9):
                 plt.subplot(3,3,i+1)
-                plt.plot(self.t_hist[:u_hist.shape[0]], u_hist[:,i-7])
+                plt.plot(self.t_hist[:u_hist.shape[0]], u_hist[:,i-7], color=agent.color)
                 plt.title(titles[i])
-        plt.legend([str(agent.ID) for agent in self.agents])
+        # plt.legend([str(agent.ID) for agent in self.agents])
 
 
     def plotAgentTrack(self):
         self.scene_config["track"].plotTrack()
         for agent in self.agents:
             x_global_hist = agent.getGlobalStateHistory()
-            plt.scatter(x_global_hist[0, 0], x_global_hist[0, 1], marker='D')
-            plt.plot(x_global_hist[:, 0], x_global_hist[:, 1], label=str(agent.ID))
+            plt.scatter(x_global_hist[0, 0], x_global_hist[0, 1], marker='D', c=agent.color)
+            plt.plot(x_global_hist[:, 0], x_global_hist[:, 1], label=str(agent.ID), color=agent.color)
 
 
     def animateRace(self, follow_agent_ID=None):
@@ -300,10 +301,11 @@ if __name__ == "__main__":
 
     # Max speed PID controller
     # x0_2 = np.array([0, 0, 0, 0, 0, 0, 0]) # Qualifying lap
-    x0_2 =  np.array([0, 0, 0, 10, 0, 0, 0]) # Straight overtake
+    # x0_2 =  np.array([0, 0, 0, 10, 0, 0, 0]) # Straight overtake
+    x0_2 =  np.array([650, 0, 0, 40, 0, 0, 0])  # Faster curve overtake
     controller2 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=85)
     agent2 = BicycleVehicle(veh_config, scene_config, x0_2, controller2, 2, color='b')
-    # sim.addAgent(agent2)
+    sim.addAgent(agent2)
 
     # Vanilla MPC controller
     # x0_3 = np.array([-30, 0, 0, 30, 0, 0, 0])
@@ -313,18 +315,18 @@ if __name__ == "__main__":
     # sim.addAgent(agent3)
 
     # x0_4 =  np.array([920, 0, 0, 10, 0, 0, 0]) # Nice overtake
-    # x0_4 =  np.array([650, 0, 0, 40, 0, 0, 0])  # Faster overtake
+    # x0_4 =  np.array([650, 0, 0, 40, 0, 0, 0])  # Faster curve overtake
     # x0_4 =  np.array([0, 0, 0, 10, 0, 0, 0]) # Straight overtake
     # x0_4 =  np.array([-50, 5, 0, 0, 0, 0, 0]) # Experimenting
     x0_4 = np.array([0, 0, 0, 0, 0, 0, 0]) # Qualifying lap
     controller4 = SafeMPCController(veh_config, scene_config, cont_config)
     # controller4 = MPCController(veh_config, scene_config, cont_config)
     agent4 = BicycleVehicle(veh_config, scene_config, x0_4, controller4, 4, color='g', add_noise=False)
-    sim.addAgent(agent4)
+    # sim.addAgent(agent4)
 
     # x0_5 = np.array([960, 0, 0, 10, 0, 0, 0]) # Nice overtake
-    # x0_5 = np.array([725, 0, 0, 40, 0, 0, 0])  # Faster overtake
-    x0_5 =  np.array([70, 10, 0, 10, 0, 0, 0]) # Straight overtake
+    x0_5 = np.array([725, 0, 0, 40, 0, 0, 0])  # Faster curve overtake
+    # x0_5 =  np.array([70, 10, 0, 10, 0, 0, 0]) # Straight overtake
     # x0_5 =  np.array([30, -12, 0, 0, 0, 0, 0]) # Experimenting
     controller5 = AdversarialMPCController(veh_config, scene_config, cont_config)
     agent5 = BicycleVehicle(veh_config, scene_config, x0_5, controller5, 5, color='r')
@@ -344,7 +346,7 @@ if __name__ == "__main__":
     
     
     # sim.runSim(end_plot=True, animate=True, save=True, follow_agent_IDs=[2], qualifying=True)
-    sim.runSim(end_plot=False, animate=True, save=True, follow_agent_IDs=[4], qualifying=True)
+    sim.runSim(end_plot=True, animate=True, save=True, follow_agent_IDs=[2,5], qualifying=False)
     # sim.runSim(end_plot=True, animate=False, save=False, follow_agent_IDs=[None, 4])
     # sim.runSim(end_plot=False, animate=True, save=True, follow_agent_IDs=[4,5])
     
