@@ -900,6 +900,8 @@ class SafeMPCController(MPCController):
             if np.abs(ds_curr)<max_safe_opp_dist or (np.sign(ds_curr) != np.sign(ds_future)):
                 # Accounts for (1) current opp state unsafe, (2) curr/future state safe, BUT crosses ds=0 in between)
                 # Add trajectory to be considered, interpolating between current and future opponent (s,ey)
+                
+                # Quadratic interpolation
                 # interp_s = interpolate.interp1d(np.array([0, 2, 3]),
                 #                                 np.array([opp_position[0], future_opp_position_2s[0], future_opp_position_3s[0]]),
                 #                                 kind = 'quadratic')
@@ -908,12 +910,15 @@ class SafeMPCController(MPCController):
                 #                                 kind = 'quadratic')
                 # oppo_pos_mat[2*counter,:] = interp_s(np.arange(0, T+dt, dt))
                 # oppo_pos_mat[2*counter+1,:] = interp_ey(np.arange(0, T+dt, dt))
-                delta_opp_pos = future_opp_position - opp_position
-                quad_space = np.linspace(0, np.sqrt(np.abs(delta_opp_pos)), ref_traj.shape[1]).T ** 2
-                pred_traj = np.multiply(quad_space, np.sign(delta_opp_pos).reshape((2,1))) + opp_position.reshape((2,1))
-                pred_traj[1,:self.control_config["pred_ey_hold_steps"]] = pred_traj[1,0]
-                oppo_pos_mat[2*counter:2*(counter+1),:] = pred_traj
-                # oppo_pos_mat[2*counter:2*(counter+1),:] = np.linspace(opp_position, future_opp_position, ref_traj.shape[1]).T
+                
+                # Quadratic interpolation with holding ey constant
+                # delta_opp_pos = future_opp_position - opp_position
+                # quad_space = np.linspace(0, np.sqrt(np.abs(delta_opp_pos)), ref_traj.shape[1]).T ** 2
+                # pred_traj = np.multiply(quad_space, np.sign(delta_opp_pos).reshape((2,1))) + opp_position.reshape((2,1))
+                # pred_traj[1,:self.control_config["pred_ey_hold_steps"]] = pred_traj[1,0]
+                # oppo_pos_mat[2*counter:2*(counter+1),:] = pred_traj
+
+                oppo_pos_mat[2*counter:2*(counter+1),:] = np.linspace(opp_position, future_opp_position, ref_traj.shape[1]).T
 
                 if agent_ID not in self.agentID2ind:
                     if not self.agentID2ind:
@@ -973,22 +978,22 @@ class SafeMPCController(MPCController):
         ds_long, dey_long = gp_long_predicts[0,:2]
 
         # Take the average
-        short_weight = 0.5
-        gp_avg_predicts = short_weight*gp_short_predicts[0] + (1-short_weight)*gp_long_predicts[0]
+        # gp_avg_predicts = (gp_short_predicts[0] + gp_long_predicts[0]) / 2
+        gp_avg_predicts = 0.64*gp_short_predicts[0] + 0.36*gp_long_predicts[0]
         # print(np.round([stat e[0], opp_state[0], opp_state[0]-state[0], gp_avg_predicts[0]+(opp_state[0]-state[0]), -ds_for_opp_state], 2))
         future_opp_state = copy.deepcopy(opp_state)
         future_opp_state[:2] = state[:2] - gp_avg_predicts[:2]
-        print(np.round([future_opp_state[0], opp_state[0]+ds_for_opp_state], 2))
-        print(np.round([future_opp_state[1]], 2), dey_short, dey_long)
+        # print(np.round([future_opp_state[0], opp_state[0]+ds_for_opp_state], 2))
+        # print(np.round([future_opp_state[1]], 2), dey_short, dey_long)
         return future_opp_state
 
         # Return both
-        # future_opp_state_2s = copy.deepcopy(opp_state)
-        # future_opp_state_3s = copy.deepcopy(opp_state)
-        # future_opp_state_2s[:2] = state[:2] - gp_short_predicts[:2]
-        # future_opp_state_3s[:2] = state[:2] - gp_long_predicts[:2]
+        future_opp_state_2s = copy.deepcopy(opp_state)
+        future_opp_state_3s = copy.deepcopy(opp_state)
+        future_opp_state_2s[:2] = state[:2] - gp_short_predicts[:2]
+        future_opp_state_3s[:2] = state[:2] - gp_long_predicts[:2]
 
-        # return future_opp_state_2s
+        return future_opp_state_2s
         # return future_opp_state_3s
         # return future_opp_state_2s, future_opp_state_3s
 

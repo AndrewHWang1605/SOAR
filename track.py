@@ -135,11 +135,13 @@ class Track:
 
     def plotTrack(self, ax=None):
         if ax is None:
-            fig, ax = plt.subplots(figsize=(15,8))
+            fig, ax = plt.subplots(figsize=(8,8))
         ax.plot(self.track_xypsi[:,0], self.track_xypsi[:,1], linestyle='--', color='lightgrey', zorder=-1)
         ax.plot(self.track_xypsi[:,0] - self.track_config["track_half_width"]*np.sin(self.track_xypsi[:,2]), self.track_xypsi[:,1] + self.track_config["track_half_width"]*np.cos(self.track_xypsi[:,2]), linestyle='-', color='grey', zorder=-1) # Left track limit
         ax.plot(self.track_xypsi[:,0] + self.track_config["track_half_width"]*np.sin(self.track_xypsi[:,2]), self.track_xypsi[:,1] - self.track_config["track_half_width"]*np.cos(self.track_xypsi[:,2]), linestyle='-', color='grey', zorder=-1) # Right track limit
         ax.axis('equal')
+        ax.set_xlabel("x [m]")
+        ax.set_ylabel("y [m]")
         return ax
 
 class OvalTrack(Track):
@@ -193,7 +195,8 @@ if __name__ == "__main__":
     # print("Curvilinear State", cl_state)
     # print("Global State", glob_state)
 
-    # track.plotTrack()    
+    track.plotTrack()  
+    plt.show()  
     # plt.scatter(track_x, track_y)
     # plt.quiver(glob_state[0], glob_state[1], np.cos(glob_state[2]), np.sin(glob_state[2]))
     # plt.quiver(glob_state[0], glob_state[1], glob_state[3], glob_state[4], color='r')
