@@ -302,8 +302,9 @@ if __name__ == "__main__":
 
     # Max speed PID controller
     # x0_2 = np.array([0, 0, 0, 0, 0, 0, 0]) # Qualifying lap
-    x0_2 =  np.array([0, 0, 0, 5, 0, 0, 0]) # Straight overtake
+    # x0_2 =  np.array([0, 0, 0, 5, 0, 0, 0]) # Straight overtake
     # x0_2 =  np.array([650, 0, 0, 40, 0, 0, 0])  # Faster curve overtake
+    x0_2 =  np.array([-100, 0, 0, 25, 0, 0, 0])  # Experimenting
     controller2 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=85)
     agent2 = BicycleVehicle(veh_config, scene_config, x0_2, controller2, 2, color='b')
     sim.addAgent(agent2)
@@ -318,22 +319,22 @@ if __name__ == "__main__":
     # sim.addAgent(agent3)
 
     # x0_4 =  np.array([920, 0, 0, 10, 0, 0, 0]) # Nice overtake
-    x0_4 =  np.array([650, 0, 0, 40, 0, 0, 0])  # Faster curve overtake
+    # x0_4 =  np.array([650, 0, 0, 40, 0, 0, 0])  # Faster curve overtake
     # x0_4 =  np.array([0, 0, 0, 5, 0, 0, 0]) # Straight overtake
-    # x0_4 =  np.array([-50, 5, 0, 0, 0, 0, 0]) # Experimenting
+    x0_4 =  np.array([0, 10, 0, 15, 0, 0, 0]) # Experimenting
     # x0_4 = np.array([0, 0, 0, 0, 0, 0, 0]) # Qualifying lap
     controller4 = SafeMPCController(veh_config, scene_config, cont_config)
     # controller4 = MPCController(veh_config, scene_config, cont_config)
     agent4 = BicycleVehicle(veh_config, scene_config, x0_4, controller4, 4, color='g', add_noise=False)
-    # sim.addAgent(agent4)
+    sim.addAgent(agent4)
 
     # x0_5 = np.array([960, 0, 0, 10, 0, 0, 0]) # Nice overtake
-    # x0_5 = np.array([725, 0, 0, 40, 0, 0, 0])  # Faster curve overtake
-    x0_5 =  np.array([70, 10, 0, 5, 0, 0, 0]) # Straight overtake
+    x0_5 = np.array([725, 0, 0, 40, 0, 0, 0])  # Faster curve overtake
+    # x0_5 =  np.array([70, 10, 0, 5, 0, 0, 0]) # Straight overtake
     # x0_5 =  np.array([30, -12, 0, 0, 0, 0, 0]) # Experimenting
     controller5 = AdversarialMPCController(veh_config, scene_config, cont_config)
     agent5 = BicycleVehicle(veh_config, scene_config, x0_5, controller5, 5, color='r')
-    sim.addAgent(agent5)
+    # sim.addAgent(agent5)
 
     # x0_6 = np.array([300, -12, 0, 5, 0, 0, 0])
     # # x0_6 = np.array([1000, -5, 0, 5, 0, 0, 0])
