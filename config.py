@@ -99,7 +99,7 @@ def get_scene_config(track_type=OVAL_TRACK):
     scene_config["track"] = track
     scene_config["track_config"] = track_config
     scene_config["dt"] = 0.001
-    scene_config["sim_time"] = 80
+    scene_config["sim_time"] = 15
 
     scene_config["anim_downsample_factor"] = 50
     scene_config["anim_window"] = 150

@@ -109,7 +109,7 @@ class Simulator:
                 if save:
                     writergif = animation.PillowWriter(fps=30)
                     # anim.save('filename.gif',writer=writergif)
-                    anim.save("./videos/race_video_{}.mp4".format("agent"+str(follow_ID) if follow_ID is not None else "global"))
+                    anim.save("./footage/race_video_{}.mp4".format("agent"+str(follow_ID) if follow_ID is not None else "global"))
                 else:
                     plt.show()
         return retVal
@@ -175,7 +175,7 @@ class Simulator:
             mean = np.mean(runtime_hist)
             std = np.std(runtime_hist)
             max_val = np.max(runtime_hist)
-            min_val = np.min(runtime_hist[75:]) # Exclude the beginning when we just naively accelerate
+            min_val = np.min(runtime_hist[20:]) # Exclude the beginning when we just naively accelerate
             print("Agent {} Runtime: Mean {}, Std {}, Max {}, Min {}".format(agent.ID, mean, std, max_val, min_val))
 
 
@@ -251,15 +251,16 @@ class Simulator:
                 hw = agent.halfwidth
                 patch = agent.patch
 
+
                 controller = agent.controller
-                if np.isclose((i*self.scene_config["anim_downsample_factor"]*self.dt / agent.controller.ctrl_period), np.round(i*self.scene_config["anim_downsample_factor"]*self.dt / agent.controller.ctrl_period), atol=1e-3): # Run at proper frequency
-                    if agent.controller.controller_type == "safe_mpc":
-                        gp_pred_hist = agent.controller.gp_pred_hist[int(np.round(i*self.scene_config["anim_downsample_factor"]*self.dt / agent.controller.ctrl_period))]
-                        for agentID in controller.agentID2ind:
-                            s_ey = gp_pred_hist[controller.agentID2ind[agentID]]
-                            xy = self.scene_config["track"].CLtoGlobalPos(s_ey)
-                            traj = agent.controller.patchDict[agentID]
-                            traj.set_data(xy)
+                time_ind = int(np.floor((i*self.scene_config["anim_downsample_factor"]*self.dt - 0.05) / agent.controller.ctrl_period))
+                if agent.controller.controller_type == "safe_mpc":
+                    gp_pred_hist = agent.controller.gp_pred_hist[time_ind]
+                    for agentID in controller.agentID2ind:
+                        s_ey = gp_pred_hist[controller.agentID2ind[agentID]]
+                        xy = self.scene_config["track"].CLtoGlobalPos(s_ey)
+                        traj = agent.controller.patchDict[agentID]
+                        traj.set_data(xy)
 
                 x, y, theta, vx, vy, w, delta = agent.x_global_hist[i*self.scene_config["anim_downsample_factor"],:]
 
@@ -323,10 +324,10 @@ if __name__ == "__main__":
     # x0_5 = np.array([960, 0, 0, 10, 0, 0, 0]) # Nice overtake
     # x0_5 = np.array([725, 0, 0, 40, 0, 0, 0])  # Faster overtake
     # x0_5 =  np.array([70, 10, 0, 10, 0, 0, 0]) # Straight overtake
-    x0_5 =  np.array([125, 0, 0, 80, 0, 0, 0]) # Experimenting
+    x0_5 =  np.array([30, -12, 0, 0, 0, 0, 0]) # Experimenting
     controller5 = AdversarialMPCController(veh_config, scene_config, cont_config)
     agent5 = BicycleVehicle(veh_config, scene_config, x0_5, controller5, 5, color='r')
-    # sim.addAgent(agent5)
+    sim.addAgent(agent5)
 
     # x0_6 = np.array([300, -12, 0, 5, 0, 0, 0])
     # # x0_5 = np.array([1000, -5, 0, 5, 0, 0, 0])
@@ -334,10 +335,10 @@ if __name__ == "__main__":
     # agent6 = BicycleVehicle(veh_config, scene_config, x0_6, controller6, 6, color='b')
     # sim.addAgent(agent6)
 
-    x0_7 = np.array([-25, -12, 0, 5, 0, 0, 0])
-    # x0_5 = np.array([1000, -5, 0, 5, 0, 0, 0])
-    controller7 = SafeMPCController(veh_config, scene_config, cont_config)
-    agent7 = BicycleVehicle(veh_config, scene_config, x0_7, controller7, 7, color='k')
+    # x0_7 = np.array([-25, -12, 0, 5, 0, 0, 0])
+    # # x0_5 = np.array([1000, -5, 0, 5, 0, 0, 0])
+    # controller7 = SafeMPCController(veh_config, scene_config, cont_config)
+    # agent7 = BicycleVehicle(veh_config, scene_config, x0_7, controller7, 7, color='k')
     # sim.addAgent(agent7)
     
     
