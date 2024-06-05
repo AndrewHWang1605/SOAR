@@ -138,7 +138,7 @@ class GPRegression():
                 agent_inputs[i], ds = self.stateToGPInput(ego_state, opp_state, self.track)
         gp_predicts, std_predicts = self.GP.predict(agent_inputs, return_std=True)
         end_time = time.time()
-        print("Predict time:", np.round(end_time - start_time, 5))
+        # print("Predict time:", np.round(end_time - start_time, 5))
         return gp_predicts #, std_predicts
         
     
