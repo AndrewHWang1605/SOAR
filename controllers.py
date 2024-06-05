@@ -745,7 +745,6 @@ class AdversarialMPCController(MPCController):
         freq = self.control_config["opt_freq"]  # Optimization Frequency
         N = int(T*freq)                         # Number of discretization steps
 
-        # print("Handicap ")
         # Define state constraints
         lbx = ca.DM.zeros((STATE_DIM*(N+1) + INPUT_DIM*N, 1))
         ubx = ca.DM.zeros((STATE_DIM*(N+1) + INPUT_DIM*N, 1))
@@ -802,7 +801,7 @@ class SafeMPCController(MPCController):
         N = int(T*freq)                         # Number of discretization steps
 
         max_number_opponents = self.control_config["safe_opt_max_num_opponents"]
-        self.gp_pred_hist = np.zeros((timesteps, max_number_opponents, 2, N+1))
+        self.gp_pred_hist = np.zeros((timesteps, max_number_opponents+1, 2, N+1))
         self.agentID2ind = {}
         self.current_timestep = 0
 
@@ -859,7 +858,7 @@ class SafeMPCController(MPCController):
         # Find positions of all agents close enough to consider for safety (up to max_num_opponents agents)
         max_safe_opp_dist = self.control_config["safe_opt_max_opp_dist"]
         max_num_opponents = self.control_config["safe_opt_max_num_opponents"]
-        oppo_pos_mat = max_safe_opp_dist*100 * np.ones((max_num_opponents*2, ref_traj.shape[1])) # Initialize (s,ey) to very far away by default to not affect opt
+        oppo_pos_mat = max_safe_opp_dist*2 * np.ones((max_num_opponents*2, ref_traj.shape[1])) # Initialize (s,ey) to very far away by default to not affect opt
         opp_pos = np.zeros((2, len(oppo_states)))
         opp_future_pos = np.zeros((2, len(oppo_states)))
         # opp_future_pos_2s = np.zeros((2, len(oppo_states)))
@@ -881,7 +880,7 @@ class SafeMPCController(MPCController):
         if len(oppo_states) <= max_num_opponents: # Less opponents than max, so add them all if close enough
             smallInd = np.arange(0, len(oppo_states), 1)
         else: # Need to look through and find the closest max_num_opponents agents that fulfill criteria to be considered
-            smallInd = np.argpartition(opp_pos[0,:] - state[0], max_num_opponents)[:max_num_opponents]
+            smallInd = np.argpartition(np.abs(opp_pos[0,:] - state[0]), max_num_opponents)[:max_num_opponents]
         # Loop through and add all positions if close enough
         counter = 0
         for ind in smallInd:

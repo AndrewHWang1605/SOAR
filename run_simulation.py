@@ -255,6 +255,7 @@ class Simulator:
 
                 controller = agent.controller
                 time_ind = int(np.round((i*self.scene_config["anim_downsample_factor"]*self.dt - 0.05) / agent.controller.ctrl_period))
+                time_ind = int(np.round((i*self.scene_config["anim_downsample_factor"]*self.dt) / agent.controller.ctrl_period))
                 if agent.controller.controller_type == "safe_mpc":
                     gp_pred_hist = agent.controller.gp_pred_hist[time_ind]
                     for agentID in controller.agentID2ind:
@@ -301,36 +302,39 @@ if __name__ == "__main__":
 
     # Max speed PID controller
     # x0_2 = np.array([0, 0, 0, 0, 0, 0, 0]) # Qualifying lap
-    # x0_2 =  np.array([0, 0, 0, 10, 0, 0, 0]) # Straight overtake
-    x0_2 =  np.array([650, 0, 0, 40, 0, 0, 0])  # Faster curve overtake
+    # x0_2 =  np.array([0, 0, 0, 5, 0, 0, 0]) # Straight overtake
+    # x0_2 =  np.array([650, 0, 0, 40, 0, 0, 0])  # Faster curve overtake
+    x0_2 =  np.array([-20, 0, 0, 10, 0, 0, 0])  # Dodge
     controller2 = ConstantVelocityController(veh_config, scene_config, cont_config, v_ref=85)
     agent2 = BicycleVehicle(veh_config, scene_config, x0_2, controller2, 2, color='b')
     # sim.addAgent(agent2)
 
     # Vanilla MPC controller
     # x0_3 = np.array([-30, 0, 0, 30, 0, 0, 0])
-    x0_3 = np.array([0, 10, 0, 0, 0, 0, 0]) # Qualifying lap
+    # x0_3 = np.array([0, 0, 0, 0, 0, 0, 0]) # Qualifying lap
+    # x0_3 =  np.array([0, 0, 0, 5, 0, 0, 0]) # Straight overtake
+    x0_3 =  np.array([650, 0, 0, 40, 0, 0, 0])  # Faster curve overtake
     controller3 = MPCController(veh_config, scene_config, cont_config)
     agent3 = BicycleVehicle(veh_config, scene_config, x0_3, controller3, 3, color='m')
     # sim.addAgent(agent3)
 
     # x0_4 =  np.array([920, 0, 0, 10, 0, 0, 0]) # Nice overtake
     # x0_4 =  np.array([650, 0, 0, 40, 0, 0, 0])  # Faster curve overtake
-    # x0_4 =  np.array([0, 0, 0, 10, 0, 0, 0]) # Straight overtake
-    # x0_4 =  np.array([-50, 5, 0, 0, 0, 0, 0]) # Experimenting
-    x0_4 = np.array([0, 0, 0, 0, 0, 0, 0]) # Qualifying lap
+    # x0_4 =  np.array([0, 0, 0, 5, 0, 0, 0]) # Straight overtake
+    x0_4 =  np.array([0, 10, 0, 5, 0, 0, 0]) # DODGE
+    # x0_4 = np.array([0, 0, 0, 0, 0, 0, 0]) # Qualifying lap
     controller4 = SafeMPCController(veh_config, scene_config, cont_config)
     # controller4 = MPCController(veh_config, scene_config, cont_config)
     agent4 = BicycleVehicle(veh_config, scene_config, x0_4, controller4, 4, color='g', add_noise=False)
     sim.addAgent(agent4)
 
     # x0_5 = np.array([960, 0, 0, 10, 0, 0, 0]) # Nice overtake
-    x0_5 = np.array([725, 0, 0, 40, 0, 0, 0])  # Faster curve overtake
-    # x0_5 =  np.array([70, 10, 0, 10, 0, 0, 0]) # Straight overtake
-    # x0_5 =  np.array([110, -12, 0, 0, 0, 0, 0]) # Experimenting
+    # x0_5 = np.array([725, 0, 0, 5, 0, 0, 0])  # Faster curve overtake
+    # x0_5 =  np.array([70, 10, 0, 5, 0, 0, 0]) # Straight overtake
+    x0_5 =  np.array([30, -12, 0, 0, 0, 0, 0]) # Experimenting
     controller5 = AdversarialMPCController(veh_config, scene_config, cont_config)
     agent5 = BicycleVehicle(veh_config, scene_config, x0_5, controller5, 5, color='r')
-    sim.addAgent(agent5)
+    # sim.addAgent(agent5)
 
     x0_6 = np.array([300, -12, 0, 5, 0, 0, 0])
     # x0_6 = np.array([1000, -5, 0, 5, 0, 0, 0])
@@ -338,15 +342,15 @@ if __name__ == "__main__":
     agent6 = BicycleVehicle(veh_config, scene_config, x0_6, controller6, 6, color='b')
     sim.addAgent(agent6)
 
-    # x0_7 = np.array([-25, -12, 0, 5, 0, 0, 0])
-    # # x0_5 = np.array([1000, -5, 0, 5, 0, 0, 0])
-    # controller7 = SafeMPCController(veh_config, scene_config, cont_config)
-    # agent7 = BicycleVehicle(veh_config, scene_config, x0_7, controller7, 7, color='k')
-    # sim.addAgent(agent7)
+    x0_7 = np.array([-25, -12, 0, 5, 0, 0, 0])
+    # x0_5 = np.array([1000, -5, 0, 5, 0, 0, 0])
+    controller7 = SafeMPCController(veh_config, scene_config, cont_config)
+    agent7 = BicycleVehicle(veh_config, scene_config, x0_7, controller7, 7, color='c')
+    sim.addAgent(agent7)
     
     
     # sim.runSim(end_plot=True, animate=True, save=True, follow_agent_IDs=[2], qualifying=True)
-    sim.runSim(end_plot=False, animate=True, save=True, follow_agent_IDs=[4], qualifying=False)
+    sim.runSim(end_plot=True, animate=True, save=True, follow_agent_IDs=[4,5,7], qualifying=False)
     # sim.runSim(end_plot=True, animate=False, save=False, follow_agent_IDs=[None, 4])
     # sim.runSim(end_plot=False, animate=True, save=True, follow_agent_IDs=[4,5])
     
