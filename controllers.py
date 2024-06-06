@@ -488,6 +488,9 @@ class MPCController(Controller):
         force_norm = ca.norm_2(ca.vertcat(Fxr, Fyf, Fyr)) # Assume Fxf = 0
         return x_new, force_norm
 
+    def jumpstart(self):
+        return self.control_config["input_ub"]["accel"], 0
+    
     def getRefTrajectory(self, s0, delta_t):
         """
         s0: Current longitudinal position
@@ -534,7 +537,7 @@ class MPCController(Controller):
         # print("Oppo", oppo_states)
         t = time.time()
         if (state[3] < self.control_config["jumpstart_velo"]): # Handles weirdness at very low speeds (accelerates to small velo, then controller kicks in)
-            return self.control_config["input_ub"]["accel"], 0
+            return self.jumpstart()
         T = self.control_config["T"]
         freq = self.control_config["opt_freq"]
         dt = 1.0/freq                    
@@ -771,7 +774,8 @@ class AdversarialMPCController(MPCController):
 
         return lbx, ubx
 
-
+    def jumpstart(self):
+        return self.control_config["slow_input_ub"]["accel"], 0
 
 
 
