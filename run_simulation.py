@@ -107,8 +107,10 @@ class Simulator:
             for follow_ID in follow_agent_IDs:
                 anim = self.animateRace(follow_agent_ID=follow_ID)
                 if save:
+                    # Save as GIF
                     writergif = animation.PillowWriter(fps=30)
                     # anim.save('filename.gif',writer=writergif)
+                    # Save as MP4
                     anim.save("./footage/race_video_{}.mp4".format("agent"+str(follow_ID) if follow_ID is not None else "global"))
                 else:
                     plt.show()
@@ -146,10 +148,6 @@ class Simulator:
                     collision_agents.update([agent.ID, oppo_agent.ID])
 
         return collision, list(collision_agents)
-
-    def addMeasurementNoise():
-        # TODO: Implement!
-        pass
     
 
     def exportSimData(self):
@@ -206,7 +204,6 @@ class Simulator:
         y = [0, 1, 2, 3]
         yaw = [0.0, 0.5, 1.3, 0.5]
         fig = plt.figure(figsize=(9,9))
-        # plt.grid()
         ax = fig.add_subplot(111)
         self.scene_config["track"].plotTrack(ax=ax)
 
@@ -279,7 +276,6 @@ class Simulator:
                                     interval=self.scene_config["anim_downsample_factor"] * self.scene_config["dt"] * 1000,
                                     repeat=False,
                                     blit=False)
-        # plt.show()
         return anim
 
 if __name__ == "__main__":
@@ -314,23 +310,21 @@ if __name__ == "__main__":
     agent3 = BicycleVehicle(veh_config, scene_config, x0_3, controller3, 3, color='m')
     # sim.addAgent(agent3)
 
-    # x0_4 =  np.array([920, 0, 0, 10, 0, 0, 0]) # Nice overtake
+    # x0_4 = np.array([0, 0, 0, 0, 0, 0, 0]) # Qualifying lap
+    x0_4 =  np.array([920, 0, 0, 10, 0, 0, 0]) # Nice overtake
     # x0_4 =  np.array([650, 0, 0, 40, 0, 0, 0])  # Faster curve overtake
     # x0_4 =  np.array([0, 0, 0, 5, 0, 0, 0]) # Straight overtake
     # x0_4 =  np.array([0, 10, 0, 5, 0, 0, 0]) # DODGE
-    x0_4 = np.array([0, 0, 0, 0, 0, 0, 0]) # Qualifying lap
     controller4 = SafeMPCController(veh_config, scene_config, cont_config)
-    # controller4 = MPCController(veh_config, scene_config, cont_config)
     agent4 = BicycleVehicle(veh_config, scene_config, x0_4, controller4, 4, color='g', add_noise=False)
-    # sim.addAgent(agent4)
+    sim.addAgent(agent4)
 
     # x0_5 = np.array([0, 0, 0, 0, 0, 0, 0]) # Qualifying lap
-    # x0_5 = np.array([960, 0, 0, 10, 0, 0, 0]) # Nice overtake
+    x0_5 = np.array([960, 0, 0, 10, 0, 0, 0]) # Nice overtake
     # x0_5 = np.array([725, 0, 0, 40, 0, 0, 0])  # Faster curve overtake
-    x0_5 =  np.array([70, 10, 0, 5, 0, 0, 0]) # Straight overtake
-    # x0_5 =  np.array([30, -12, 0, 0, 0, 0, 0]) # Experimenting
+    # x0_5 =  np.array([70, 10, 0, 5, 0, 0, 0]) # Straight overtake
     controller5 = AdversarialMPCController(veh_config, scene_config, cont_config)
-    agent5 = BicycleVehicle(veh_config, scene_config, x0_5, controller5, 5, color='r')#'r')
+    agent5 = BicycleVehicle(veh_config, scene_config, x0_5, controller5, 5, color='tab:blue')#'r')
     sim.addAgent(agent5)
 
     # x0_6 = np.array([300, -12, 0, 5, 0, 0, 0])
@@ -339,17 +333,16 @@ if __name__ == "__main__":
     x0_6 =  np.array([0, 0, 0, 5, 0, 0, 0]) # Straight overtake
     controller6 = AdversarialMPCController(veh_config, scene_config, cont_config)
     agent6 = BicycleVehicle(veh_config, scene_config, x0_6, controller6, 6, color='r')
-    sim.addAgent(agent6)
+    # sim.addAgent(agent6)
 
     x0_7 = np.array([-25, -12, 0, 5, 0, 0, 0])
-    # x0_5 = np.array([1000, -5, 0, 5, 0, 0, 0])
     controller7 = SafeMPCController(veh_config, scene_config, cont_config)
     agent7 = BicycleVehicle(veh_config, scene_config, x0_7, controller7, 7, color='c')
     # sim.addAgent(agent7)
     
     
     # sim.runSim(end_plot=True, animate=True, save=True, follow_agent_IDs=[2], qualifying=True)
-    sim.runSim(end_plot=True, animate=True, save=True, follow_agent_IDs=[5,6], qualifying=True)
+    sim.runSim(end_plot=True, animate=True, save=True, follow_agent_IDs=[5], qualifying=True)
     # sim.runSim(end_plot=True, animate=False, save=False, follow_agent_IDs=[None, 4])
     # sim.runSim(end_plot=False, animate=True, save=True, follow_agent_IDs=[4,5])
     

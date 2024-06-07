@@ -43,16 +43,16 @@ def get_vehicle_config():
     veh_config["lf"] = 2.0              # m length forward from CoM
     veh_config["lr"] = 2.0              # m length backward from CoM
     veh_config["half_width"] = 1.05     # m symmetric width from CoM to each side
-    veh_config["downforce_coeff"] = 5
+    veh_config["downforce_coeff"] = 5   # Downforce multiplier to translate to max tire traction
 
     veh_config["max_accel"] = 10        # m/s^2 Max acceleration (assumed symmetric accel/brake)
     veh_config["max_steer_rate"] = 3    # rad/s Max steering rate 
     veh_config["max_steer"] = 0.5       # rad Steering Lock
 
     veh_config["c"] = 210000            # N/rad wheel stiffness 
+    # https://www.racecar-engineering.com/tech-explained/tyre-dynamics/
 
     return veh_config
-
 
 
 
@@ -93,7 +93,7 @@ def get_scene_config(track_type=OVAL_TRACK):
     scene_config["track"] = track
     scene_config["track_config"] = track_config
     scene_config["dt"] = 0.001
-    scene_config["sim_time"] = 20
+    scene_config["sim_time"] = 10 # Total simulation time
 
     scene_config["anim_downsample_factor"] = 50
     scene_config["anim_window"] = 150
@@ -130,14 +130,14 @@ def get_controller_config(veh_config, scene_config):
     # States: s, ey, epsi, vx, vy, omega, delta
     # Inputs: accel, ddelta
 
-    # Blind aggressive variant
+    # Advesarial MPC Variant
     aggressive_rating = 1 # [0,1] Tune: higher->more aggressive (0 equivalent to vanilla MPC, 1 ignores ref ey)
     controller_config["adv_opt_k_ey"] = (1-aggressive_rating)*controller_config["opt_k_ey"]
     controller_config["k_ey_diff"] = aggressive_rating*controller_config["opt_k_ey"] 
     controller_config["adversary_dist"] = 200 # How far before opponent registers as close enough for adversarial action
     
-    # Safe variant
-    controller_config["safe_opt_max_num_opponents"] = 1
+    # Safe MPC Variant
+    controller_config["safe_opt_max_num_opponents"] = 1     # Tune: Increase number of opponents that will be accounted for
     controller_config["safe_opt_buffer"] = 0.2              # m, distance away in both s and ey from opponents
     controller_config["safe_opt_max_opp_dist"] = 200        # m, distance away before safely planning for opponent
     controller_config["pred_ey_hold_steps"] = int(1 * controller_config["opt_freq"]) # Number of steps to hold ey estimate steady
@@ -188,7 +188,7 @@ def get_controller_config(veh_config, scene_config):
     controller_config["slow_input_ub"] = {  "accel": 0.8*veh_config["max_accel"],
                                             "ddelta": veh_config["max_steer_rate"] }  
 
-    controller_config["jumpstart_velo"] = 0.5 #m/s     
+    controller_config["jumpstart_velo"] = 0.5 #m/s Minimum speed before MPC kicks in    
 
     controller_config["GP_config"] = get_GP_config()                            
 
