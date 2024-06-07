@@ -183,7 +183,7 @@ class LTrack(Track):
 
 if __name__ == "__main__":
     # Debugging routine
-    
+
     # Oval Track
     track_config = {"track_half_width":10, "straight_length":100, "curve_radius":90, "ds":0.05}
     track = OvalTrack(track_config)
@@ -211,7 +211,7 @@ if __name__ == "__main__":
     plt.axis('equal')
     plt.show()
 
-    Test get curvature
+    # Test get curvature
     s = np.linspace(0,10000,1000)
     plt.plot(s,track.getCurvature(s))
     plt.plot(s,track.getCurvature(s%6712))
