@@ -76,6 +76,7 @@ class Track:
         return curvature
 
     def getTrackPosition(self, s):
+        """ Linear interpolation to get global coordinates of track centerline at a particular longitudinal position """
         s = self.normalizeS(s)
         xypsi = [0]*3
         for i in range(3):
@@ -181,9 +182,11 @@ class LTrack(Track):
         self.name = "L TRACK w/Straight {}, Curve Radius {}".format(track_config["straight_length"], track_config["curve_radius"]) 
 
 if __name__ == "__main__":
+    # Debugging routine
+    
     # Oval Track
-    # track_config = {"track_half_width":10, "straight_length":100, "curve_radius":90, "ds":0.05}
-    # track = OvalTrack(track_config)
+    track_config = {"track_half_width":10, "straight_length":100, "curve_radius":90, "ds":0.05}
+    track = OvalTrack(track_config)
 
     # L Track
     track_config = {"track_half_width":15, "straight_length":1000, "curve_radius":500, "ds":0.05}
@@ -196,22 +199,22 @@ if __name__ == "__main__":
     cl_state = np.array([320, -7, np.pi/4, 15, 15, 0, 0])
     glob_state = track.CLtoGlobal(cl_state)
     track_x,track_y,track_psi = track.getTrackPosition(cl_state[0])
-    # print("Curvilinear State", cl_state)
-    # print("Global State", glob_state)
+    print("Curvilinear State", cl_state)
+    print("Global State", glob_state)
 
     track.plotTrack()  
     plt.show()  
-    # plt.scatter(track_x, track_y)
-    # plt.quiver(glob_state[0], glob_state[1], np.cos(glob_state[2]), np.sin(glob_state[2]))
-    # plt.quiver(glob_state[0], glob_state[1], glob_state[3], glob_state[4], color='r')
-    # plt.legend(["Centerline", "Left Bound", "Right Bound", "Track pos", "Pose", "Velo"])
-    # plt.axis('equal')
-    # plt.show()
+    plt.scatter(track_x, track_y)
+    plt.quiver(glob_state[0], glob_state[1], np.cos(glob_state[2]), np.sin(glob_state[2]))
+    plt.quiver(glob_state[0], glob_state[1], glob_state[3], glob_state[4], color='r')
+    plt.legend(["Centerline", "Left Bound", "Right Bound", "Track pos", "Pose", "Velo"])
+    plt.axis('equal')
+    plt.show()
 
-    # Test get curvature
-    # s = np.linspace(0,10000,1000)
-    # plt.plot(s,track.getCurvature(s))
-    # plt.plot(s,track.getCurvature(s%6712))
-    # plt.show()
+    Test get curvature
+    s = np.linspace(0,10000,1000)
+    plt.plot(s,track.getCurvature(s))
+    plt.plot(s,track.getCurvature(s%6712))
+    plt.show()
 
 

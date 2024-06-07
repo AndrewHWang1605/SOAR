@@ -279,7 +279,7 @@ class Simulator:
         return anim
 
 if __name__ == "__main__":
-    """Initialize configurations"""
+    """ Initialize configurations and run simulation """
     veh_config = get_vehicle_config()
     scene_config = get_scene_config(track_type=L_TRACK)
     cont_config = get_controller_config(veh_config, scene_config)
