@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 """
-Implement various controllers
+Implementations of each controller (sinusoidal, PID, nominal, vanilla MPC, adversarial MPC, and SAFE MPC)
 """
 import numpy as np
 import casadi as ca
@@ -36,6 +36,7 @@ STATE_DIM = 7
 INPUT_DIM = 2
 
 class Controller:
+    """ Base controller class """
     def __init__(self, veh_config, scene_config, control_config):
         self.veh_config = veh_config
         self.scene_config = scene_config
@@ -50,23 +51,21 @@ class Controller:
         """
         raise NotImplementedError("Inheritance not implemented correctly")
 
-"""Sinusoidal steering with const acceleration (for debugging)"""
 class SinusoidalController(Controller):
+    """ Sinusoidal steering with const acceleration (for debugging) """
     def __init__(self,  veh_config, scene_config, control_config):
         super().__init__(veh_config, scene_config, control_config)
         self.ctrl_period = 1.0 / control_config["sine_ctrl_freq"]
         self.controller_type = "sinusoidal"
 
     def computeControl(self, state, oppo_states, t):
-        """
-        Calculate next input (rear wheel commanded acceleration, derivative of steering angle) 
-        """
+        """ Calculate next input (rear wheel commanded acceleration, derivative of steering angle) """
         w = self.control_config["omega"]
         self.current_timestep += 1
         return 2, w*np.pi/180*np.cos(w*t)
 
-"""Constant velocity controller for trajectory following of track centerline"""
 class ConstantVelocityController(Controller):
+    """ Constant velocity controller for trajectory following of track centerline """
     def __init__(self,  veh_config, scene_config, control_config, v_ref=12):
         super().__init__(veh_config, scene_config, control_config)
         self.ctrl_period = 1.0 / control_config["pid_ctrl_freq"]
@@ -84,11 +83,9 @@ class ConstantVelocityController(Controller):
         self.controller_type = "const_vel"
 
     def computeControl(self, state, oppo_states, t):
-        """
-        Calculate next input (rear wheel commanded acceleration, derivative of steering angle) 
-        """
+        """ Calculate next input (rear wheel commanded acceleration, derivative of steering angle) """
 
-        """Unpack global config variables and current state variables"""
+        # Unpack global config variables and current state variables
         if (state[3] < self.control_config["jumpstart_velo"]): # Handles weirdness at very low speeds (accelerates to small velo, then controller kicks in)
             return self.control_config["input_ub"]["accel"], 0
         accel, steering_rate = 0, 0
@@ -98,14 +95,14 @@ class ConstantVelocityController(Controller):
         lf, lr = self.veh_config["lf"], self.veh_config["lr"]
         k_v, k_theta, k_delta = self.control_config["k_v"], self.control_config["k_theta"], self.control_config["k_delta"]
 
-        """Caclulate global position and expected track position/curvature"""
+        # Calculate global position and expected track position/curvature
         global_state = track.CLtoGlobal(state)
         x, y, theta, vx, vy, w, delta = global_state
         track_position = track.getTrackPosition(s)
         x_track, y_track, theta_track = track_position
         kappa = track.getCurvature(s)
 
-        """PID control for velocity with acceleration input with anti-windup"""
+        # PID control for velocity with acceleration input with anti-windup
         v = np.linalg.norm([vx, vy])
         v_error = (self.v_ref - v) 
         accel = (k_v[0] * v_error) + (k_v[1] * self.total_v_error) + (k_v[2] * (v_error - self.prev_v_error))
@@ -114,14 +111,14 @@ class ConstantVelocityController(Controller):
         self.prev_v_error = v_error
         accel = np.clip(accel, -self.veh_config["max_accel"], self.veh_config["max_accel"])
 
-        """Pre-calculating heading theta error with overlap check"""
+        # Pre-calculating heading theta error with overlap check
         theta_error = theta_track - theta
         if (theta_track > 13/14*np.pi and theta < 1/14*np.pi):
             theta_error -= 2*np.pi
         elif (theta_track < 1/14*np.pi and theta > 13/14*np.pi):
             theta_error += 2*np.pi
 
-        """Pre-calculating steering delta error with overlap check"""
+        # Pre-calculating steering delta error with overlap check
         beta = np.arcsin(lr * kappa)
         delta_des = np.arctan((lf+lr)/lr * np.tan(beta))
         delta_error = delta_des - delta
@@ -139,7 +136,6 @@ class ConstantVelocityController(Controller):
             if (np.abs(theta_dot) < self.veh_config["max_steer_rate"]):
                 self.total_theta_error += theta_error*dt
             self.prev_theta_error = theta_error
-            # print("theta_control", theta_dot)
             steering_rate = theta_dot
         else:
             delta_dot = (k_delta[0] * (delta_error)) + (k_delta[1] * self.total_delta_error) + (k_delta[2] * (delta_error - self.prev_delta_error))
@@ -153,8 +149,8 @@ class ConstantVelocityController(Controller):
         self.current_timestep += 1
         return accel, steering_rate
     
-"""Try to exactly track nominal trajectory (for debugging)"""
 class NominalOptimalController(Controller):
+    """ Try to exactly track nominal trajectory by finding closest longitudinal distance along track (for debugging) """
     def __init__(self,  veh_config, scene_config, control_config):
         super().__init__(veh_config, scene_config, control_config)
         unpack_file = np.load(control_config["raceline_filepath"])
@@ -165,9 +161,7 @@ class NominalOptimalController(Controller):
 
 
     def computeControl(self, state, oppo_states, t):
-        """
-        Calculate next input (rear wheel commanded acceleration, derivative of steering angle) 
-        """
+        """ Calculate next input (rear wheel commanded acceleration, derivative of steering angle) """
         if (state[3] < self.control_config["jumpstart_velo"]): # Handles weirdness at very low speeds (accelerates to small velo, then controller kicks in)
             return self.control_config["input_ub"]["accel"], 0
         s, ey, epsi, vx_cl, vy_cl, w, delta = state
@@ -178,8 +172,8 @@ class NominalOptimalController(Controller):
         return self.accel_hist[nearest_s_ind], self.ddelta_hist[nearest_s_ind]
 
 
-"""MPC to track reference trajectory (based on https://github.com/MMehrez/MPC-and-MHE-implementation-in-MATLAB-using-Casadi/blob/master/workshop_github/Python_Implementation/mpc_code.py)"""
 class MPCController(Controller):
+    """ Vanilla MPC to track reference trajectory (based on https://github.com/MMehrez/MPC-and-MHE-implementation-in-MATLAB-using-Casadi/blob/master/workshop_github/Python_Implementation/mpc_code.py)"""
     def __init__(self,  veh_config, scene_config, control_config):
         super().__init__(veh_config, scene_config, control_config)
         self.ctrl_period = 1.0 / control_config["opt_freq"]
@@ -337,8 +331,10 @@ class MPCController(Controller):
                
 
     def terminalCostFn(self, final_st, ref, opp=None): 
-        """ Define terminal cost (penalize deviation from terminal state in reference trajectory), 
-            currently the same cost weight as every other time step  """ 
+        """ 
+        Define terminal cost (penalize deviation from terminal state in reference trajectory), 
+        currently the same cost weight as every other time step  
+        """ 
         # Construct state cost matrix
         k_s = self.control_config["opt_k_s"]
         k_ey = self.control_config["opt_k_ey"]
@@ -352,6 +348,7 @@ class MPCController(Controller):
         return (final_st - ref[:STATE_DIM]).T @ Q @ (final_st - ref[:STATE_DIM])
 
     def configureStateInputConstraints(self):
+        """ Define matrices to define state and input constraints (lbx, ubx) """
         T = self.control_config["T"]            # Prediction horizon
         freq = self.control_config["opt_freq"]  # Optimization Frequency
         N = int(T*freq)                         # Number of discretization steps
@@ -388,7 +385,8 @@ class MPCController(Controller):
         freq = self.control_config["opt_freq"]  # Optimization Frequency
         N = int(T*freq)                         # Number of discretization steps
 
-        lbg = ca.DM.zeros((STATE_DIM*(N+1) + (N), 1)) # N+1 dynamics constraints, N force constraints
+        # N+1 dynamics constraints, N max force constraints
+        lbg = ca.DM.zeros((STATE_DIM*(N+1) + (N), 1)) 
         ubg = ca.DM.zeros((STATE_DIM*(N+1) + (N), 1))
         ubg[-(N):] = self.veh_config["downforce_coeff"] * self.veh_config["m"] * 9.81 # Max force constraint
 
@@ -489,6 +487,7 @@ class MPCController(Controller):
         return x_new, force_norm
 
     def jumpstart(self):
+        """ Provide control input for states where velocities below jumpstart velocity """
         return self.control_config["input_ub"]["accel"], 0
     
     def getRefTrajectory(self, s0, delta_t):
@@ -530,11 +529,7 @@ class MPCController(Controller):
         return warm_start_x, warm_start_u
 
     def computeControl(self, state, oppo_states, t):
-        """
-        Calculate next input (rear wheel commanded acceleration, derivative of steering angle) 
-        """
-        # print("State", state)
-        # print("Oppo", oppo_states)
+        """ Calculate next input (rear wheel commanded acceleration, derivative of steering angle) by solving MPC optimal control problem """
         t = time.time()
         if (state[3] < self.control_config["jumpstart_velo"]): # Handles weirdness at very low speeds (accelerates to small velo, then controller kicks in)
             return self.jumpstart()
@@ -543,28 +538,24 @@ class MPCController(Controller):
         dt = 1.0/freq                    
         delta_t = np.arange(0, T+dt, dt)
         N = int(T*freq)
-        # state[0] = self.scene_config["track"].normalizeS(state[0])
         t_hist, ref_traj = self.getRefTrajectory(state[0], delta_t) # s, ey, epsi, vx, vy, omega, delta, accel, ddelta
 
         # Initialize params
         P_mat = self.constructPmatrix(state, ref_traj, oppo_states)
         self.solver_args['p'] = ca.DM(P_mat)
 
-        if not self.warm_start: # At first iteration, reference is our best warm start
-            # np.random.seed(0)
-            # X0 = ca.DM(np.hstack((state.reshape((-1,1)), state.reshape((-1,1)) + 0.01*np.random.randn(STATE_DIM, N))))
-            X0 = ca.DM(np.tile(state.reshape((-1,1)), N+1))
-            # X0 = ca.DM(np.hstack((state.reshape((-1,1)), ref_traj[:STATE_DIM, 1:])))
-            # X0 = ca.DM(ref_traj[:STATE_DIM])
+        if not self.warm_start: # At first iteration, several options for our best warm start
             
-            u0 = ca.DM(ref_traj[-INPUT_DIM:, :-1])
-            # u0 = ca.DM.zeros((INPUT_DIM, N)) + 0.1
-            # print("Warm",X0[:,:3])
+            # X0 = ca.DM(np.hstack((state.reshape((-1,1)), state.reshape((-1,1)) + 0.01*np.random.randn(STATE_DIM, N)))) # Randomize around starting point
+            # X0 = ca.DM(np.tile(state.reshape((-1,1)), N+1)) # All starting points
+            # X0 = ca.DM(np.hstack((state.reshape((-1,1)), ref_traj[:STATE_DIM, 1:])))
+            X0 = ca.DM(ref_traj[:STATE_DIM]) # Reference states
+            
+            # u0 = ca.DM.zeros((INPUT_DIM, N)) + 0.1 #
+            u0 = ca.DM(ref_traj[-INPUT_DIM:, :-1]) # Use reference inputs
         else:
             X0 = ca.DM(self.warm_start["X0"])
             u0 = ca.DM(self.warm_start["u0"])
-
-        # u0[0,:] = -10
 
         self.solver_args['x0'] = ca.vertcat(
             ca.reshape(X0, STATE_DIM*(N+1), 1),
@@ -587,20 +578,8 @@ class MPCController(Controller):
 
         if not self.mpc_solver.stats()["success"]:
             print("=== FAILED:", self.mpc_solver.stats()["return_status"], sol['g'].shape)
-            # print("State", state)
-            # print("Oppo", oppo_states)
-            
-            # print(sol['g'][-(N+1):])
-            # print(x_opt[0,:]+sol['g'][-(N+1):])
-            # plt.figure()
-            # plt.plot(sol['g'])
-            # plt.plot(self.solver_args['lbg'])
-            # plt.plot(self.solver_args['ubg'])
-            # plt.legend(["g", "lbg", "ubg"])
-        # self.lookUnderTheHood(x_opt, u_opt, ref_traj)
+            # self.lookUnderTheHood(x_opt, u_opt, ref_traj)
 
-
-        # print("Compute Time", time.time()-t)
         self.current_timestep += 1
         return u_opt[0, 0], u_opt[1, 0]
 
@@ -625,8 +604,6 @@ class MPCController(Controller):
             plt.plot("Projected opponent trajectory")
             plt.scatter(self.gp_pred_hist[self.current_timestep+1, 0, 0], self.gp_pred_hist[self.current_timestep+1,0,1])
         plt.show()
-
-
 
         a = input("Continue? ")
         if (a == 'n'):
@@ -698,7 +675,7 @@ class AdversarialMPCController(MPCController):
         return P_mat
 
     def stageCostFn(self, st, con, ref, opp=None):  
-        """ Define stage cost for modularity (adds cost term to block nearest opponent behind) """
+        """ Same as vanilla, but adds cost term to block nearest opponent behind """
         # Construct state cost matrix
         k_s = self.control_config["opt_k_s"]
         k_ey = self.control_config["adv_opt_k_ey"]
@@ -725,7 +702,7 @@ class AdversarialMPCController(MPCController):
                (st[1] - ref[STATE_DIM+1]).T @ k_ey_diff @ (st[1] - ref[STATE_DIM+1])
 
     def terminalCostFn(self, final_st, ref, opp=None): 
-        """ Define terminal cost for modularity (adds cost term to block nearest opponent behind)""" 
+        """ Same as vanilla, but adds cost term to block nearest opponent behind """ 
         # Construct state cost matrix
         k_s = self.control_config["opt_k_s"]
         k_ey = self.control_config["adv_opt_k_ey"]
@@ -743,7 +720,7 @@ class AdversarialMPCController(MPCController):
                (final_st[1] - ref[STATE_DIM+1]).T @ k_ey_diff @ (final_st[1] - ref[STATE_DIM+1])
 
     def configureStateInputConstraints(self):
-        """ Configure input constraints with lower vx max for velocity handicap """
+        """ Configure input constraints with slower constraints due to handicap """
         T = self.control_config["T"]            # Prediction horizon
         freq = self.control_config["opt_freq"]  # Optimization Frequency
         N = int(T*freq)                         # Number of discretization steps
@@ -775,6 +752,7 @@ class AdversarialMPCController(MPCController):
         return lbx, ubx
 
     def jumpstart(self):
+        """ Provide control input for states where velocities below jumpstart velocity (handicapped accel) """
         return self.control_config["slow_input_ub"]["accel"], 0
 
 
@@ -787,16 +765,16 @@ class SafeMPCController(MPCController):
         self.gpr_long = GPRegression(self.GP_config, self.scene_config)
         self.gpr_short.importGP("gp_models/ADV_handicap/model_5k_150_2-0_ADV.pkl")
         self.gpr_long.importGP("gp_models/ADV_handicap/model_5k_250_3-0_ADV.pkl")
-        # self.gpr_short.importGP("gp_models/new/model_2700_110_2-0_ADV.pkl")
-        # self.gpr_long.importGP("gp_models/new/model_5k_250_3-0_ADV.pkl")
 
         self.controller_type = "safe_mpc"
         self.initGPHist()
 
     def assignGPPredPatch(self, patchDict):
+        """ Helper for plotting GP prediction """
         self.patchDict = patchDict
 
     def initGPHist(self):
+        """ Initialize matrices to store GP predictions for analysis """
         sim_time = self.scene_config["sim_time"]
         self.dt = self.scene_config["dt"]
         timesteps = int(sim_time / self.dt)
@@ -865,8 +843,6 @@ class SafeMPCController(MPCController):
         oppo_pos_mat = max_safe_opp_dist*2 * np.ones((max_num_opponents*2, ref_traj.shape[1])) # Initialize (s,ey) to very far away by default to not affect opt
         opp_pos = np.zeros((2, len(oppo_states)))
         opp_future_pos = np.zeros((2, len(oppo_states)))
-        # opp_future_pos_2s = np.zeros((2, len(oppo_states)))
-        # opp_future_pos_3s = np.zeros((2, len(oppo_states)))
         # Iterate through to unpack oppo_states into a numpy array
         ordered_agent_ID = []
         i = 0
@@ -875,9 +851,6 @@ class SafeMPCController(MPCController):
             future_opp_state = self.inferIntentGP(state, opp_state)
             opp_future_pos[:,i] = future_opp_state[:2]
 
-            # future_opp_state_2s, future_opp_state_3s = self.inferIntentGP(state, opp_state)
-            # opp_future_pos_2s[:,i] = future_opp_state_2s[:2]
-            # opp_future_pos_3s[:,i] = future_opp_state_3s[:2]
             opp_pos[:,i] = opp_state[:2]
             ordered_agent_ID.append(agent_ID)
             i += 1
@@ -893,26 +866,11 @@ class SafeMPCController(MPCController):
             future_opp_position = opp_future_pos[:, ind]
             curr_opp_s, future_opp_s, s = opp_position[0], future_opp_position[0], state[0]
 
-            # future_opp_position_2s = opp_future_pos_2s[:, ind]
-            # future_opp_position_3s = opp_future_pos_3s[:, ind]
-            # curr_opp_s, future_opp_2s_s, future_opp_3s_s, s = opp_position[0], future_opp_position_2s[0], future_opp_position_3s[0], state[0]
-
             ds_curr = track.signedSDist(s, curr_opp_s)
             ds_future = track.signedSDist(s, future_opp_s)
-            # ds_future = track.signedSDist(s, future_opp_3s_s)
             if np.abs(ds_curr)<max_safe_opp_dist or (np.sign(ds_curr) != np.sign(ds_future)):
                 # Accounts for (1) current opp state unsafe, (2) curr/future state safe, BUT crosses ds=0 in between)
                 # Add trajectory to be considered, interpolating between current and future opponent (s,ey)
-                
-                # Quadratic interpolation
-                # interp_s = interpolate.interp1d(np.array([0, 2, 3]),
-                #                                 np.array([opp_position[0], future_opp_position_2s[0], future_opp_position_3s[0]]),
-                #                                 kind = 'quadratic')
-                # interp_ey = interpolate.interp1d(np.array([0, 2, 3]),
-                #                                 np.array([opp_position[1], future_opp_position_2s[1], future_opp_position_3s[1]]),
-                #                                 kind = 'quadratic')
-                # oppo_pos_mat[2*counter,:] = interp_s(np.arange(0, T+dt, dt))
-                # oppo_pos_mat[2*counter+1,:] = interp_ey(np.arange(0, T+dt, dt))
                 
                 # Quadratic interpolation with holding ey constant
                 # delta_opp_pos = future_opp_position - opp_position
@@ -934,7 +892,6 @@ class SafeMPCController(MPCController):
 
         state_ref = np.hstack((state.reshape((STATE_DIM,1)), ref_traj[:STATE_DIM,1:]))
         P_mat = np.vstack((state_ref, curvature, oppo_pos_mat, ref_traj[STATE_DIM:]))
-        # print(P_mat[STATE_DIM+1:-INPUT_DIM,:])
         return P_mat
 
     def configureConstraints(self):
@@ -970,38 +927,21 @@ class SafeMPCController(MPCController):
 
 
     def inferIntentGP(self, state, opp_state):
-        vx = opp_state[3]
-        ds_for_opp_state = vx*self.control_config["T"]+0.5*0*9
-        # print(np.round([state[0], opp_state[0], ds_for_opp_state], 2))
-        # return opp_state + np.array([ds_for_opp_state,0,0,0,0,0,0]) # TODO: Placeholder
-
+        """ Call the Gaussian process regression model to predict future state """
         gp_short_predicts = self.gpr_short.predict(state, opp_state)
         ds_short, dey_short = gp_short_predicts[0,:2] # where ds and dey are both from (state - future_opp_state)
         gp_long_predicts = self.gpr_long.predict(state, opp_state)
         ds_long, dey_long = gp_long_predicts[0,:2]
 
         # Take the average
-        # gp_avg_predicts = (gp_short_predicts[0] + gp_long_predicts[0]) / 2
         gp_avg_predicts = 0.64*gp_short_predicts[0] + 0.36*gp_long_predicts[0]
-        # print(np.round([stat e[0], opp_state[0], opp_state[0]-state[0], gp_avg_predicts[0]+(opp_state[0]-state[0]), -ds_for_opp_state], 2))
         future_opp_state = copy.deepcopy(opp_state)
         future_opp_state[:2] = state[:2] - gp_avg_predicts[:2]
-        # print(np.round([future_opp_state[0], opp_state[0]+ds_for_opp_state], 2))
-        # print(np.round([future_opp_state[1]], 2), dey_short, dey_long)
         return future_opp_state
-
-        # Return both
-        future_opp_state_2s = copy.deepcopy(opp_state)
-        future_opp_state_3s = copy.deepcopy(opp_state)
-        future_opp_state_2s[:2] = state[:2] - gp_short_predicts[:2]
-        future_opp_state_3s[:2] = state[:2] - gp_long_predicts[:2]
-
-        return future_opp_state_2s
-        # return future_opp_state_3s
-        # return future_opp_state_2s, future_opp_state_3s
 
 
 if __name__ == "__main__":
+    # Debugging routine
     from config import *
     veh_config = get_vehicle_config()
     scene_config = get_scene_config(track_type=OVAL_TRACK)

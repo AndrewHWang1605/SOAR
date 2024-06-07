@@ -1,1 +1,1 @@
-# SOAR
+# SafeGP MPC for Autonomous Racing

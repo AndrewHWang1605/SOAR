@@ -22,13 +22,14 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 """
-Implement various agents 
+Implement agent objects to store individual trajectories, controllers, etc 
 """
 import numpy as np
 import copy
 import time
 
 class Agent:
+    """ General base agent on the track """
     def __init__(self, veh_config, scene_config, x0, controller, ID=999, color='k', add_noise=False):
         self.veh_config = veh_config
         self.scene_config = scene_config
@@ -46,6 +47,7 @@ class Agent:
 
 
     def initHistories(self):
+        """ Initialize containers to store state trajectory history and various metrics """
         sim_time = self.scene_config["sim_time"]
         self.dt = self.scene_config["dt"]
         timesteps = int(sim_time / self.dt)
@@ -57,12 +59,12 @@ class Agent:
         self.u_hist = np.zeros((timesteps, 2))
         self.compute_runtime_hist = []
 
-    # Helper function for animation
     def assignPatch(self, patch):
+        """ Helper function for animation """
         self.patch = patch
 
-    # Implement dynamics and update state one timestep later
     def step(self, oppo_states, recompute_control=False):
+        """ Implement dynamics and update state one timestep later """
         raise NotImplementedError("Inheritance not implemented correctly")
 
     def getLastState(self):
@@ -94,14 +96,12 @@ class Agent:
 
    
 class BicycleVehicle(Agent):
+    """ Dynamic bicycle model agent on the track """
     def __init__(self, veh_config, scene_config, x0, controller, ID=999, color='k', add_noise=False):
         super().__init__(veh_config, scene_config, x0, controller, ID, color, add_noise)
 
-    """
-    Implement dynamics and update state one timestep later
-    oppo_states: Nxk 
-    """
     def step(self, oppo_states, recompute_control=False):
+        """ Implement dynamics and update state one timestep later """
         if recompute_control:
             t = time.time()
             accel, delta_dot = self.controller.computeControl(self.x_hist[self.current_timestep], oppo_states, self.current_timestep*self.dt)
@@ -128,8 +128,9 @@ class BicycleVehicle(Agent):
             self.lap_count = self.x[0] // self.scene_config["track"].total_len + 1
         return x_new, lap_completed
     
-    # Steps forward dynamics of vehicle one discrete timestep
     def dynamics(self, x, accel, delta_dot):
+        """ Steps forward dynamics of vehicle one discrete timestep """
+
         # Expands state variable and precalculates sin/cos
         s, ey, epsi, vx, vy, omega, delta = x
         sin_epsi, cos_epsi = np.sin(epsi), np.cos(epsi)
@@ -162,21 +163,21 @@ class BicycleVehicle(Agent):
         x_new[6] = np.clip(x_new[6], -self.veh_config["max_steer"], self.veh_config["max_steer"])
         return x_new
 
-    # Rear wheel drive, all acceleration goes onto rear wheels
     def longitudinalForce(self, accel):
+        #Rear wheel drive, all acceleration goes onto rear wheels
         m = self.veh_config["m"]
         Fxf, Fxr = 0, m*accel
         return Fxf, Fxr
     
-    # Simple linearized lateral forces/tire model with slip angles
     def lateralForce(self, x):
+        # Simple linearized lateral forces/tire model with slip angles
         c = self.veh_config["c"]
         alpha_f, alpha_r = self.slipAngles(x)
         Fyf, Fyr = c*alpha_f, c*alpha_r
         return Fyf, Fyr
     
-    # Slip angles for tires
     def slipAngles(self, x):
+        # Slip angles for tires
         vx, vy, omega, delta = x[3:]
         lf = self.veh_config["lf"]
         lr = self.veh_config["lr"]
@@ -187,8 +188,8 @@ class BicycleVehicle(Agent):
                  
         return alpha_f, alpha_r
     
-    # Frontal drag force of vehicle
     def dragForce(self, x):
+        # Aerodynamic drag force of vehicle
         vx = x[4]
         rho = 1.225
         Cd = self.veh_config["Cd"]
@@ -197,16 +198,17 @@ class BicycleVehicle(Agent):
         return Fd
 
     def saturateInputs(self, accel, delta_dot):
+        # Enforce limits on acceleration, steering rate, even if controller commands infeasible values
         accel_clipped = np.clip(accel, -self.veh_config["max_accel"], self.veh_config["max_accel"])
         delta_dot_clipped = np.clip(delta_dot, -self.veh_config["max_steer_rate"], self.veh_config["max_steer_rate"])
         return accel_clipped, delta_dot_clipped
 
     def saturateForces(self, Fxf, Fxr, Fyf, Fyr):
+        # Enforce limits on tire forces to prevent entering nonlinear region of the tires
         F = np.array([Fxf, Fxr, Fyf, Fyr])
         Fmax = self.veh_config["downforce_coeff"] * self.veh_config["m"] * 9.81
         if np.linalg.norm(F) < Fmax:
             return Fxf, Fxr, Fyf, Fyr
-
         else:
             print("== Exceeded max force: {}g".format(np.linalg.norm(F)/Fmax))
             print(Fxf, Fxr, Fyf, Fyr)
@@ -216,12 +218,8 @@ class BicycleVehicle(Agent):
                 exit()
             return Fxf, Fxr, Fyf, Fyr
         
-
     def addProcessNoise(self, state):
-        # s, ey, epsi, vx, vy, omega, delta = x
-        # TODO: Noise too large? Figure this out
         noisy_covar = np.eye(state.shape[0]) * [5e-3, 5e-4, 2e-7, 5e-3, 2e-5, 5e-8, 2e-8] * 3
         noisy_state = state + np.random.multivariate_normal(np.zeros(state.shape), noisy_covar)
-        # print(state, noisy_state)
         return noisy_state
 
