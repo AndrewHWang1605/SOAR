@@ -22,7 +22,7 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 """
-Implement track
+Implement general track class to implement hand-designed piecewise-constant-curvature tracks
 """
 import numpy as np
 import matplotlib.pyplot as plt
@@ -33,9 +33,10 @@ class Track:
         self.track_config = track_config
         self.generateTrackRep(track_config)        
 
-    # Convert curvilinear coordinates to global
+
     def CLtoGlobal(self, state):
         """
+        Convert curvilinear coordinates to global
         curvilinear state: [s, ey, epsi, vx, vy, w, delta]
         global state: [x, y, theta, vx, vy, w, delta]
         """
@@ -51,9 +52,10 @@ class Track:
         global_state = np.array([x, y, theta, vx, vy, w, delta])
         return global_state
 
-    # Convert curvilinear coordinates to global, but for long and lat position arrays
+
     def CLtoGlobalPos(self, state):
         """
+        Convert curvilinear coordinates to global, but only for long and lat position arrays
         curvilinear state: [s, ey]
         global state: [x, y]
         """
@@ -66,7 +68,9 @@ class Track:
         global_state = np.vstack((x,y))
         return global_state
 
+
     def getCurvature(self, s):
+        """ Get curvature of the track at a particular longitudinal position """
         s = self.normalizeS(s)
         curvature = np.interp(s, self.s, self.track_curvature)
         return curvature
