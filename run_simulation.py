@@ -328,13 +328,13 @@ if __name__ == "__main__":
     agent4 = BicycleVehicle(veh_config, scene_config, x0_4, controller4, 4, color='g', add_noise=False)
     # sim.addAgent(agent4)
 
-    # x0_5 = np.array([0, 0, 0, 0, 0, 0, 0]) # Qualifying lap
+    x0_5 = np.array([0, 0, 0, 0, 0, 0, 0]) # Qualifying lap
     # x0_5 = np.array([960, 0, 0, 10, 0, 0, 0]) # Nice overtake
     # x0_5 = np.array([725, 0, 0, 40, 0, 0, 0])  # Faster curve overtake
-    x0_5 =  np.array([70, 10, 0, 5, 0, 0, 0]) # Straight overtake
+    # x0_5 =  np.array([70, 10, 0, 5, 0, 0, 0]) # Straight overtake
     # x0_5 =  np.array([30, -12, 0, 0, 0, 0, 0]) # Experimenting
     controller5 = AdversarialMPCController(veh_config, scene_config, cont_config)
-    agent5 = BicycleVehicle(veh_config, scene_config, x0_5, controller5, 5, color='r')#'r')
+    agent5 = BicycleVehicle(veh_config, scene_config, x0_5, controller5, 5, color='tab:blue')#'r')
     sim.addAgent(agent5)
 
     # x0_6 = np.array([300, -12, 0, 5, 0, 0, 0])
@@ -343,7 +343,7 @@ if __name__ == "__main__":
     x0_6 =  np.array([0, 0, 0, 5, 0, 0, 0]) # Straight overtake
     controller6 = AdversarialMPCController(veh_config, scene_config, cont_config)
     agent6 = BicycleVehicle(veh_config, scene_config, x0_6, controller6, 6, color='r')
-    sim.addAgent(agent6)
+    # sim.addAgent(agent6)
 
     x0_7 = np.array([-25, -12, 0, 5, 0, 0, 0])
     # x0_5 = np.array([1000, -5, 0, 5, 0, 0, 0])
@@ -353,7 +353,7 @@ if __name__ == "__main__":
     
     
     # sim.runSim(end_plot=True, animate=True, save=True, follow_agent_IDs=[2], qualifying=True)
-    sim.runSim(end_plot=True, animate=True, save=True, follow_agent_IDs=[5,6], qualifying=True)
+    sim.runSim(end_plot=True, animate=True, save=True, follow_agent_IDs=[5], qualifying=True)
     # sim.runSim(end_plot=True, animate=False, save=False, follow_agent_IDs=[None, 4])
     # sim.runSim(end_plot=False, animate=True, save=True, follow_agent_IDs=[4,5])
     
