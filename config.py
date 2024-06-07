@@ -22,11 +22,10 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 """
 """
-Implement configs
+Implement configurations to set up different classes/objects
 """
 
 from track import *
-# from controllers import *
 import casadi as ca
 import numpy as np
 
@@ -37,24 +36,20 @@ L_TRACK = 1
 def get_vehicle_config():
     veh_config = {}
 
-    veh_config["m"] = 800 #2            # kg mass
+    veh_config["m"] = 800               # kg mass
     veh_config["Cd"] = 0.56             # drag coeff
     veh_config["SA"] = 2                # m^2 frontal SA
-    veh_config["Iz"] = 1800 #0.03        # kg/m^2 
-    veh_config["lf"] = 2.0 #0.125       # m length forward from CoM
-    veh_config["lr"] = 2.0 #0.125       # m length backward from CoM
+    veh_config["Iz"] = 1800             # kg/m^2 
+    veh_config["lf"] = 2.0              # m length forward from CoM
+    veh_config["lr"] = 2.0              # m length backward from CoM
     veh_config["half_width"] = 1.05     # m symmetric width from CoM to each side
-    # veh_config["size"] = 4.1
     veh_config["downforce_coeff"] = 5
-    # veh_config["R"] = 0.5               # m radius of tire
 
-    veh_config["max_accel"] = 10 # m/s^2 Max acceleration (assumed symmetric accel/brake)
-    veh_config["max_steer_rate"] = 3  # rad/s Max steering rate 
-    veh_config["max_steer"] = 0.5 # rad Steering Lock
+    veh_config["max_accel"] = 10        # m/s^2 Max acceleration (assumed symmetric accel/brake)
+    veh_config["max_steer_rate"] = 3    # rad/s Max steering rate 
+    veh_config["max_steer"] = 0.5       # rad Steering Lock
 
-    # TODO: Confirm/Change
-    veh_config["c"] = 210000  #46         # N/rad wheel stiffness 
-    # https://www.racecar-engineering.com/tech-explained/tyre-dynamics/
+    veh_config["c"] = 210000            # N/rad wheel stiffness 
 
     return veh_config
 
@@ -89,7 +84,6 @@ def get_scene_config(track_type=OVAL_TRACK):
     scene_config = {}
 
     if track_type == OVAL_TRACK:
-        # track_config = {"track_half_width":10, "straight_length":100, "curve_radius":90, "ds":0.05}
         track_config = {"track_half_width":10, "straight_length":1000, "curve_radius":250, "ds":0.1, "track_type":OVAL_TRACK}
         track = OvalTrack(track_config)
     elif track_type == L_TRACK:
@@ -110,20 +104,17 @@ def get_scene_config(track_type=OVAL_TRACK):
 def get_controller_config(veh_config, scene_config):
     controller_config = {}
 
-    # SINUSOIDAL
+    # Sinusoidal
     controller_config["omega"] = 1.5
     
-    # PID CONSTANT VELOCITY
-    # controller_config["k_v"] = [0.5, 1e-3, 2e-1]
-    # controller_config["k_theta"] = [2e-2, 2e-4, 8e0]
-    # controller_config["k_delta"] = [1e1, 4e0, 7e-1]
+    # PID Constant Velocity
     controller_config["k_v"] = [6e0, 2e-1, 4e0]
     controller_config["k_theta"] = [1.2e0, 1e-1, 7e0]
     controller_config["k_delta"] = [1.2e1, 1e-0, 7e1]
     controller_config["pid_ctrl_freq"] = 100 #Hz
 
     # MPC 
-    controller_config["T"] = 3.0 #0.5 # s 
+    controller_config["T"] = 3.0  # sec
     controller_config["opt_freq"] = 40 # Hz
     controller_config["opt_k_s"] = 80
     controller_config["opt_k_ey"] = 200
@@ -134,7 +125,7 @@ def get_controller_config(veh_config, scene_config):
     controller_config["opt_k_delta"] = 0.1
     controller_config["opt_k_ua"] = 1
     controller_config["opt_k_us"] = 1
-    controller_config["opt_k_ddelta"] = 100000 # Try to quash overly oscillatory ddelta command
+    controller_config["opt_k_ddelta"] = 100000
 
     # States: s, ey, epsi, vx, vy, omega, delta
     # Inputs: accel, ddelta
@@ -159,7 +150,7 @@ def get_controller_config(veh_config, scene_config):
 
     track_half_width = scene_config["track_config"]["track_half_width"]
     max_steer = veh_config["max_steer"]
-    controller_config["states_lb"] = { "s": -ca.inf,                          # m
+    controller_config["states_lb"] = { "s": -ca.inf,                    # m
                                        "ey": -track_half_width,         # m
                                        "epsi": -10*np.pi/180,           # rad
                                        "vx": 0,                         # m/s
@@ -178,7 +169,7 @@ def get_controller_config(veh_config, scene_config):
     controller_config["input_ub"] = {  "accel": veh_config["max_accel"],
                                        "ddelta": veh_config["max_steer_rate"] }  
 
-    controller_config["slow_states_lb"] = { "s": -ca.inf,                          # m
+    controller_config["slow_states_lb"] = { "s": -ca.inf,                    # m
                                             "ey": -track_half_width,         # m
                                             "epsi": -10*np.pi/180,           # rad
                                             "vx": 0,                         # m/s
@@ -188,7 +179,7 @@ def get_controller_config(veh_config, scene_config):
     controller_config["slow_states_ub"] = { "s": ca.inf,                     # m
                                             "ey": track_half_width,          # m
                                             "epsi": 10*np.pi/180,            # rad
-                                            "vx": 400,                        # m/s
+                                            "vx": 400,                       # m/s
                                             "vy": 4,                         # m/s
                                             "omega": 1,                      # rad/s
                                             "delta": max_steer }             # rad
@@ -209,11 +200,13 @@ def get_controller_config(veh_config, scene_config):
 def get_GP_config():
     GP_config = {}
 
-    GP_config["sample_count"] = 5000           # samples when fitting/training
+    GP_config["training"] = False
+    GP_config["sample_count"] = 5000            # samples when fitting/training
     GP_config["sample_attempt_repeat"] = 10     # attempts when random sampling
-    GP_config["ds_bound"] = 150                # distance b/w agents in s
-    GP_config["lookahead"] = 2.0             # seconds of lookahead
+    GP_config["ds_bound"] = 150                 # distance b/w agents in s
+    GP_config["lookahead"] = 2.0                # seconds of lookahead
 
+    GP_config["testing"] = True
     GP_config["test_count"] = 100               # samples when testing
 
     return GP_config

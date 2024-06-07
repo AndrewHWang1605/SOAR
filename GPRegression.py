@@ -27,12 +27,10 @@ Implement Gaussian process module
 
 import csv, ast, sys, time, pickle
 import numpy as np
-import scipy as sp
 import matplotlib.pyplot as plt
 from sklearn.gaussian_process import GaussianProcessRegressor
-from sklearn.gaussian_process.kernels import RBF, Matern
+from sklearn.gaussian_process.kernels import Matern
 from sklearn.utils import shuffle
-from sklearn.utils.optimize import _check_optimize_result
 
 from track import OvalTrack, LTrack
 from config import *
@@ -58,10 +56,6 @@ class GPRegression():
 
         self.kernel = 1 * Matern(length_scale=1e2, length_scale_bounds=(1e1, 1e6))
         self.GP = GaussianProcessRegressor(kernel=self.kernel, n_restarts_optimizer=5)
-        # self.GP = MyGPR(kernel=self.kernel, n_restarts_optimizer=9)
-
-        # np.random.seed(888)
-
 
 
     """Exports current GP object to pickle"""
@@ -74,7 +68,6 @@ class GPRegression():
             print("Error occurred when exporting GP to pickle file:", file_path)
         
 
-
     """Imports GP object from saved pickle"""
     def importGP(self, file_path='gp_models/model_base_test.pkl'):
         try:
@@ -83,7 +76,6 @@ class GPRegression():
             print("Imported GP model from pickle file:", file_path)
         except:
             print("Error occurred when importing GP from pickle file:", file_path)
-
 
 
     """Imports sim data from filepath, can select multiple sims"""
@@ -114,22 +106,16 @@ class GPRegression():
         print(self.GP.kernel_)
 
 
-
     """Tests GP prediction from inputted sim data"""
     def testPredict(self, end_plot=False):
         random_data, random_output = self.getSampleDataVaried(self.test_count)
-        start_time = time.time()
         mean_prediction, std_prediction = self.GP.predict(random_data, return_std=True)
-        end_time = time.time()
-        # print(np.round(end_time-start_time, 3))
         if end_plot:
             self.plotPredictions(random_output, mean_prediction, std_prediction)
 
 
-
     """Uses fitted GP to predict output for state input(s)"""
     def predict(self, ego_state, opp_states):
-        start_time = time.time()
         if len(opp_states.shape) == 1:
             agent_inputs, ds = self.stateToGPInput(ego_state, opp_states, self.track)
         else:
@@ -137,71 +123,71 @@ class GPRegression():
             for i, opp_state in enumerate(opp_states):
                 agent_inputs[i], ds = self.stateToGPInput(ego_state, opp_state, self.track)
         gp_predicts, std_predicts = self.GP.predict(agent_inputs, return_std=True)
-        end_time = time.time()
-        # print("Predict time:", np.round(end_time - start_time, 5))
-        return gp_predicts #, std_predicts
+        return gp_predicts
         
-    
 
-    """Plots prediction vs. outputs and normalized errors"""
+    """Plots predictions vs. actual outputs and normalized errors"""
     def plotPredictions(self, output, mean_prediction, std_prediction):
-        titles = np.array(["ds", "dey", "epsi", "vx", "vy", "omega"])
+        titles = np.array(["ds", "dey"])
         elements = output.shape[1]
         titles = titles[:elements]
         counts = np.arange(mean_prediction.shape[0])
-        # plt.figure(0, figsize=(15,8))
-        # for i in range(elements):
-        #     plt.subplot(2,2,i+1)
-        #     # plt.plot(output[:,i], label="Training data")
-        #     # plt.plot(mean_prediction[:,i], label="Mean prediction")
-        #     plt.scatter(counts, output[:,i], label="Training data", marker=".", s=25)
-        #     plt.scatter(counts, mean_prediction[:,i], label="Mean prediction", marker=".", s=25)
-        #     plt.title(titles[i] + "prediction vs. actual")
 
-        mean_prediction[:,1] = mean_prediction[:,1] + 15
-        output[:,1] = output[:,1] + 15
+        plt.figure(0, figsize=(15,8))
+        for i in range(elements):
+            plt.subplot(2,2,i+1)
+            plt.scatter(counts, output[:,i], label="Training data", marker=".", s=25)
+            plt.scatter(counts, mean_prediction[:,i], label="Mean prediction", marker=".", s=25)
+            plt.title(titles[i] + "prediction vs. actual")
+
+        mean_prediction[:,1] = mean_prediction[:,1] + self.scene_config["track_config"]["track_half_width"]
+        output[:,1] = output[:,1] + self.scene_config["track_config"]["track_half_width"]
         normalized_data = np.abs(np.divide(mean_prediction - output, output))
+
         plt.figure(1, figsize=(15,8))
         for i in range(elements):
             plt.subplot(2,2,i+1)
-            # plt.plot(normalized_data[:,i])
             plt.scatter(counts, normalized_data[:,i], marker=".", s=25)
             plt.title(titles[i] + " Normalized Error")
-        print(np.mean(normalized_data,axis=0))
+
+        print("Average normalized errors:", np.mean(normalized_data,axis=0))
         plt.show()
-    
 
 
     """Gets randomly sampled data from multiple imported sims"""
     def getSampleDataVaried(self, count):
-        #GP_train_data array will have [ds, de_y, e_psi^1, v_x^1, e_y^2, e_psi^2, v_x^2, w^2, k2]
+        # [ds, de_y, e_psi^1, v_x^1, e_y^2, e_psi^2, v_x^2, w^2, k2]
         GP_train_data = np.zeros((count, 9))
-        #GP_output_data array will have ds and de_y for lookahead state
+        # [ds_f and de_y_f]
         GP_output_data = np.zeros((count, 2))
 
+        # Determine how many datapoints sampled per sim
         len_data = len(self.imported_sim_data)
         if len_data <= 2:
             sim_subcount = count
         else:
             sim_subcount = count/len_data
-        total_counter = 0
 
+        # Cycle through sims to sample datapoints
+        total_counter = 0
         for sim in self.imported_sim_data:
+            # Export sim scene and agent information
             sim_success, collision_agents, agent_count, track_config, states = sim
 
             track_type = track_config["track_type"]
-            if track_type == 0:
+            if track_type == OVAL_TRACK:
                 track = OvalTrack(track_config)
-            elif track_type == 1:
+            elif track_type == L_TRACK:
                 track = LTrack(track_config)
 
             timesteps = states[0].shape[0]
             ego_idx = 0
             ego_states = np.array(states[ego_idx])
 
-            counter = 0
+            # Sample datapoints from sim that are within ds bound
+            current_counter = 0
             break_counter = 0
-            while counter < sim_subcount and break_counter < count*self.sample_attempt_repeat and total_counter < count:
+            while (current_counter < sim_subcount) and (break_counter < count*self.sample_attempt_repeat) and (total_counter < count):
                 opp_idx = np.random.randint(1, agent_count)
                 opp_states = np.array(states[opp_idx])
                 sample_idx = np.random.randint(0, timesteps-self.timestep_offset)
@@ -212,23 +198,23 @@ class GPRegression():
 
                 if abs(ds) <= self.ds_bound:
                     GP_train_data[total_counter] = input_data
-                    """Output data as oppo lookahead state with ds instead of s2"""
                     future_oppo_state = opp_states[sample_idx+self.timestep_offset]
                     output_data = self.stateToGPOutput(ego_state, future_oppo_state, track)
                     GP_output_data[total_counter] = output_data
 
-                    print(total_counter, np.round(GP_train_data[total_counter][:2],2), np.round(GP_output_data[total_counter],2))
-                    counter += 1
+                    current_counter += 1
                     total_counter += 1
 
                 break_counter += 1
+
+            print("Collected datapoints:", total_counter)
         
-        print("\ntotal_counter =", total_counter)
+        # Trim empty array elements from data array, shuffle, and return
+        print("\nTotal collected datapoints:", total_counter)
         train_data = GP_train_data[:total_counter-1]
         output_data = GP_output_data[:total_counter-1]
         shuffle_train_data, shuffle_output_data = shuffle(train_data, output_data)
         return shuffle_train_data, shuffle_output_data
-
 
 
     """Helper function that returns the GP input"""
@@ -237,7 +223,6 @@ class GPRegression():
         s1, ey1, epsi1, vx1, vy1, omega1, delta1 = ego_state
         s2, ey2, epsi2, vx2, vy2, omega2, delta2 = opp_state
         
-
         ds = self.getDiffS(s1, s2, track_length)
         dey = ey1 - ey2
         kappa2 = track.getCurvature(s2)
@@ -261,6 +246,7 @@ class GPRegression():
         return predict_output
         
 
+    """Helper function to get s differential with track wrap-around"""
     def getDiffS(self, s1, s2, track_length):
         s1 = self.normalizeS(s1, track_length)
         s2 = self.normalizeS(s2, track_length)
@@ -272,36 +258,16 @@ class GPRegression():
         else:
             return s1-s2
 
+
+    """Helper function to normalize s by track length"""
     def normalizeS(self, s, track_length):
         return np.mod(np.mod(s, track_length) + track_length, track_length)
-    
-    
-
-
-
-class MyGPR(GaussianProcessRegressor):
-    def __init__(self, kernel, n_restarts_optimizer, max_iter=2e5, gtol=1e-06):
-        super().__init__(kernel=kernel, n_restarts_optimizer=n_restarts_optimizer)
-        self.max_iter = max_iter
-        self.gtol = gtol
-
-    def _constrained_optimization(self, obj_func, initial_theta, bounds):
-        if self.optimizer == "fmin_l_bfgs_b":
-            opt_res = sp.optimize.minimize(obj_func, initial_theta, method="L-BFGS-B", jac=True, bounds=bounds, options={'maxiter':self.max_iter, 'gtol': self.gtol})
-            _check_optimize_result("lbfgs", opt_res)
-            theta_opt, func_min = opt_res.x, opt_res.fun
-        elif callable(self.optimizer):
-            theta_opt, func_min = self.optimizer(obj_func, initial_theta, bounds=bounds)
-        else:
-            raise ValueError("Unknown optimizer %s." % self.optimizer)
-        return theta_opt, func_min
     
 
 
 
 """Imports a sim's data from a csv file"""
 def importSimDataFromCSV(dataID, file_path):
-    
     # Decrease the maxInt value by factor 10 if OverflowError for dict import
     maxInt = sys.maxsize
     while True:
@@ -319,22 +285,14 @@ def importSimDataFromCSV(dataID, file_path):
 
     sim_success = np.array(ast.literal_eval(sim_data["sim_success"]))
     collision_agents = np.array(ast.literal_eval(sim_data["collision_agents"]))
-    # times = np.array(ast.literal_eval(sim_data["t"]))
     agent_count = np.array(ast.literal_eval(sim_data["agent_count"]))
-    states, controls = [], []
+    states = []
     for i in range(agent_count):
         states.append(np.array(ast.literal_eval(sim_data["x" + str(i+1)])))
-        # controls.append(np.array(ast.literal_eval(sim_data["u" + str(i+1)])))
     track_config = dict(ast.literal_eval(sim_data["track_config"]))
     
     states = np.array(states)
-    controls = np.array(controls)
-
-    return sim_success, collision_agents, agent_count, track_config, states, #controls, times
-
-
-
-
+    return sim_success, collision_agents, agent_count, track_config, states
 
 
 
@@ -343,38 +301,16 @@ if __name__ == "__main__":
     GP_config = get_GP_config()
     scene_config = get_scene_config()
     gpr = GPRegression(GP_config, scene_config)
-
-    # sim_counts = np.arange(1,241)
-    # file_path = "train_data/ADV_handicap_data"
-    # gpr.importSimData(file_path, sim_counts)
-    # start_time = time.time()
-    # gpr.trainGP()
-    # gpr.exportGP("gp_models/ADV_handicap/test.pkl")
-    # end_time = time.time()
-    # print(np.round(end_time - start_time, 3))
-
-    gpr.importGP("gp_models/ADV_handicap/model_5k_250_3-0_ADV.pkl")
-    # gpr.importGP("gp_models/ADV_handicap/model_5k_150_2-0_ADV.pkl")
-    sim_counts = np.random.randint(1,241, 10) #np.arange(11,20)
     file_path = "train_data/ADV_handicap_data"
-    gpr.importSimData(file_path, sim_counts)
-    gpr.testPredict(end_plot=True)
 
-    # gpr1 = GPRegression(GP_config, scene_config)
-    # gpr1.importGP("gp_models/ADV_handicap/model_5k_150_2-0_ADV.pkl")
-    # ego = np.array([0, 0, 0, 0, 0, 0, 0])
-    # opp = np.array([30, -12, 0, 0, 0, 0, 0])
-    # print(ego)
-    # print(opp)
-    # prediction = gpr.predict(ego, opp)*0.36 + gpr1.predict(ego,opp)*0.64
-    # print(prediction)
+    if GP_config["training"]:
+        sim_counts = np.arange(1,241)
+        gpr.importSimData(file_path, sim_counts)
+        gpr.trainGP()
+        gpr.exportGP("gp_models/ADV_handicap/test.pkl")
 
-
-    """GP setup code to create class instance and import GP object"""
-    # GP_config = get_GP_config()
-    # scene_config = get_scene_config()
-    # gpr = GPRegression(GP_config, scene_config)
-    # gpr.importGP("gp_models/model_5k_250_ADV.pkl")
-
-    """GP predict code, input ego state and opponent state(s) as np arrays"""
-    # gpr.predict(ego_state, opp_states)
+    if GP_config["testing"]:
+        gpr.importGP("gp_models/ADV_handicap/model_5k_250_3-0_ADV.pkl")
+        sim_counts = np.random.randint(1,241,60)
+        gpr.importSimData(file_path, sim_counts)
+        gpr.testPredict(end_plot=True)

@@ -64,10 +64,7 @@ def generateRandomData(data_config, control_type, end_plots=False):
 
 """Runs uniform simulations and generates data, exporting to csv files"""
 def generateUniformData(data_config, control_type, end_plots=False):
-    # sim_count = data_config["sim_count"]
     agent_count = data_config["agent_count"]
-    # rand_init = data_config["rand_init"]
-    # agent_inits = data_config["agent_inits"]
     control_type = control_type
 
     agent_inits, sim_count = agentUniformInit(agent_count)
@@ -173,10 +170,7 @@ def agentUniformInit(agent_count):
 """Exports a sim's data to a csv file"""
 def exportSimDataToCSV(sim, dataID):
     sim_data = sim.exportSimData()
-    # file_name = "train_data/CV_test_data/data" + str(dataID) + ".csv"
-    # file_name = "train_data/MPC_test_data/data" + str(dataID) + ".csv"
-    # file_name = "train_data/ADV_test2_data/data" + str(dataID+120) + ".csv"
-    file_name = "train_data/ADV_handicap_data/data" + str(dataID+120) + ".csv"
+    file_name = "train_data/ADV_handicap_data/data" + str(dataID) + ".csv"
 
     with open(file_name, 'w') as csv_file:
         writer = csv.writer(csv_file)

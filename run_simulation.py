@@ -83,7 +83,6 @@ class Simulator:
                     recompute_ctrl = True 
                 else:
                     recompute_ctrl = False
-                # print(agent.ID)
                 temp = agent_states.pop(agent.ID) # Remove own state to only contain opponents
                 x_new, lap_completed = agent.step(agent_states, recompute_control=recompute_ctrl)
                 if lap_completed is not None:
@@ -162,11 +161,9 @@ class Simulator:
         sim_data["track_config"] = self.scene_config["track_config"]
         sim_data["sim_success"] = self.sim_success
         sim_data["collision_agents"] = np.array2string(np.array(self.collision_agents), separator=',', suppress_small=True)
-        # sim_data["t"] = np.array2string(self.t_hist, separator=',', suppress_small=True)
         sim_data["agent_count"] = len(self.agents)
         for agent in self.agents:
             sim_data["x" + str(agent.ID)] = np.array2string(agent.getStateHistory(), separator=',', suppress_small=True)
-            # sim_data["u" + str(agent.ID)] = np.array2string(agent.getControlHistory(), separator=',', suppress_small=True)
 
         return sim_data
 
@@ -194,7 +191,6 @@ class Simulator:
                 plt.subplot(3,3,i+1)
                 plt.plot(self.t_hist[:u_hist.shape[0]], u_hist[:,i-7], color=agent.color)
                 plt.title(titles[i])
-        # plt.legend([str(agent.ID) for agent in self.agents])
 
 
     def plotAgentTrack(self):

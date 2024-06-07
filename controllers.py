@@ -88,9 +88,11 @@ class ConstantVelocityController(Controller):
         Calculate next input (rear wheel commanded acceleration, derivative of steering angle) 
         """
 
-        """Unpack global config variables and current state variables"""
-        if (state[3] < self.control_config["jumpstart_velo"]): # Handles weirdness at very low speeds (accelerates to small velo, then controller kicks in)
+        """Handles weirdness at very low speeds (accelerates to small velo, then controller kicks in)"""
+        if (state[3] < self.control_config["jumpstart_velo"]):
             return self.control_config["input_ub"]["accel"], 0
+        
+        """Unpack global config variables and current state variables"""
         accel, steering_rate = 0, 0
         s, ey, epsi = state[:3]
         track = self.scene_config["track"]
@@ -139,14 +141,12 @@ class ConstantVelocityController(Controller):
             if (np.abs(theta_dot) < self.veh_config["max_steer_rate"]):
                 self.total_theta_error += theta_error*dt
             self.prev_theta_error = theta_error
-            # print("theta_control", theta_dot)
             steering_rate = theta_dot
         else:
             delta_dot = (k_delta[0] * (delta_error)) + (k_delta[1] * self.total_delta_error) + (k_delta[2] * (delta_error - self.prev_delta_error))
             if (np.abs(delta_dot) < self.veh_config["max_steer_rate"]):
                 self.total_delta_error += delta_error*dt
             self.prev_delta_error = delta_error
-            # print("delta_control", delta_dot)
             steering_rate = delta_dot
         steering_rate = np.clip(steering_rate, -self.veh_config["max_steer_rate"], self.veh_config["max_steer_rate"])
 
@@ -787,8 +787,6 @@ class SafeMPCController(MPCController):
         self.gpr_long = GPRegression(self.GP_config, self.scene_config)
         self.gpr_short.importGP("gp_models/ADV_handicap/model_5k_150_2-0_ADV.pkl")
         self.gpr_long.importGP("gp_models/ADV_handicap/model_5k_250_3-0_ADV.pkl")
-        # self.gpr_short.importGP("gp_models/new/model_2700_110_2-0_ADV.pkl")
-        # self.gpr_long.importGP("gp_models/new/model_5k_250_3-0_ADV.pkl")
 
         self.controller_type = "safe_mpc"
         self.initGPHist()
@@ -970,42 +968,13 @@ class SafeMPCController(MPCController):
 
 
     def inferIntentGP(self, state, opp_state):
-        vx = opp_state[3]
-        ds_for_opp_state = vx*self.control_config["T"]+0.5*0*9
-        # print(np.round([state[0], opp_state[0], ds_for_opp_state], 2))
-        # return opp_state + np.array([ds_for_opp_state,0,0,0,0,0,0]) # TODO: Placeholder
-
         gp_short_predicts = self.gpr_short.predict(state, opp_state)
-        ds_short, dey_short = gp_short_predicts[0,:2] # where ds and dey are both from (state - future_opp_state)
+        ds_short, dey_short = gp_short_predicts[0,:2]
         gp_long_predicts = self.gpr_long.predict(state, opp_state)
         ds_long, dey_long = gp_long_predicts[0,:2]
 
-        # Take the average
-        # gp_avg_predicts = (gp_short_predicts[0] + gp_long_predicts[0]) / 2
+        """Take interpolation of two GPs"""
         gp_avg_predicts = 0.64*gp_short_predicts[0] + 0.36*gp_long_predicts[0]
-        # print(np.round([stat e[0], opp_state[0], opp_state[0]-state[0], gp_avg_predicts[0]+(opp_state[0]-state[0]), -ds_for_opp_state], 2))
         future_opp_state = copy.deepcopy(opp_state)
         future_opp_state[:2] = state[:2] - gp_avg_predicts[:2]
-        # print(np.round([future_opp_state[0], opp_state[0]+ds_for_opp_state], 2))
-        # print(np.round([future_opp_state[1]], 2), dey_short, dey_long)
         return future_opp_state
-
-        # Return both
-        future_opp_state_2s = copy.deepcopy(opp_state)
-        future_opp_state_3s = copy.deepcopy(opp_state)
-        future_opp_state_2s[:2] = state[:2] - gp_short_predicts[:2]
-        future_opp_state_3s[:2] = state[:2] - gp_long_predicts[:2]
-
-        return future_opp_state_2s
-        # return future_opp_state_3s
-        # return future_opp_state_2s, future_opp_state_3s
-
-
-if __name__ == "__main__":
-    from config import *
-    veh_config = get_vehicle_config()
-    scene_config = get_scene_config(track_type=OVAL_TRACK)
-    cont_config = get_controller_config(veh_config, scene_config)
-    controller = MPCController(veh_config, scene_config, cont_config)
-    controller.getRefTrajectory(3.5, np.linspace(0,0,20))
-    controller.computeControl(np.array([300,0,0,0,0,0,0]), [], 0)
